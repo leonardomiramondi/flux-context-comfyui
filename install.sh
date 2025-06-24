@@ -8,7 +8,9 @@ echo "🚀 Installing Flux Context ComfyUI Node..."
 
 # Check if we're in the right directory
 if [ ! -f "requirements.txt" ]; then
-    echo "❌ Error: requirements.txt not found. Please run this script from the node directory."
+    echo "❌ Error: requirements.txt not found."
+    echo "   Make sure you're in the flux-context-comfyui directory inside your ComfyUI/custom_nodes/ folder."
+    echo "   Your ComfyUI path may be different - check where you installed ComfyUI."
     exit 1
 fi
 

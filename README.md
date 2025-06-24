@@ -14,11 +14,27 @@ Flux Context (Kontext) is an advanced image editing AI that lets you transform e
 
 ## Installation
 
+**Find your ComfyUI custom nodes folder:**
+
 ```bash
-cd ComfyUI/custom_nodes/ && git clone https://github.com/leonardomiramondi/flux-context-comfyui.git && cd flux-context-comfyui && pip install -r requirements.txt
+# Common locations - use the one that matches your setup:
+cd /path/to/your/ComfyUI/custom_nodes/           # Replace with your actual path
+cd ~/ComfyUI/custom_nodes/                       # Home folder installation
+cd /Applications/ComfyUI/custom_nodes/           # macOS app bundle
+cd C:\ComfyUI\custom_nodes\                      # Windows installation
 ```
 
-Restart ComfyUI. The node will appear under: **Add Node → image → editing → Flux Context**
+💡 **Can't find your ComfyUI folder?** Look for where you installed ComfyUI or check inside the ComfyUI interface under `Settings → Paths` or look for a `custom_nodes` folder next to your `main.py` file.
+
+**Then install the node:**
+
+```bash
+git clone https://github.com/leonardomiramondi/flux-context-comfyui.git
+cd flux-context-comfyui
+pip install -r requirements.txt
+```
+
+**Restart ComfyUI.** The node will appear under: **Add Node → image → editing → Flux Context**
 
 ## How to Use
 
