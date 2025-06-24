@@ -32,7 +32,9 @@ class FluxContextNode:
                 }),
                 "model": ([
                     "black-forest-labs/flux-kontext-pro",
-                    "black-forest-labs/flux-kontext-max"
+                    "black-forest-labs/flux-kontext-max",
+                    "flux-kontext-apps/multi-image-kontext-max",
+                    "flux-kontext-apps/multi-image-kontext-pro"
                 ], {
                     "default": "black-forest-labs/flux-kontext-pro"
                 }),
@@ -48,6 +50,13 @@ class FluxContextNode:
     @classmethod
     def VALIDATE_INPUTS(cls, **kwargs):
         """Validate inputs before processing"""
+        model = kwargs.get("model", "")
+        image_2 = kwargs.get("image 2", None)
+        
+        # flux-kontext-apps multi-image models require two images
+        if "multi-image" in model and image_2 is None:
+            return "Multi-image models require both 'image 1' and 'image 2' inputs."
+        
         return True
     
     RETURN_TYPES = ("IMAGE",)
@@ -256,16 +265,30 @@ class FluxContextNode:
                     }
                 }
                 
-                # Add images - single image or array of images
-                if image_2 is not None:
-                    # Two images - pass as array
-                    image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                    input_data["input"]["image_url"] = [image_1_b64, image_2_b64]
-                    print("Added both images as array to 'image_url'")
+                # Handle different parameter formats for different model families
+                if model.startswith("black-forest-labs/"):
+                    # Black Forest Labs models use image_url parameter
+                    if image_2 is not None:
+                        # Two images - pass as array
+                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                        input_data["input"]["image_url"] = [image_1_b64, image_2_b64]
+                        print("Added both images as array to 'image_url' (Black Forest Labs format)")
+                    else:
+                        # Single image
+                        input_data["input"]["image_url"] = image_1_b64
+                        print("Added single image as 'image_url' (Black Forest Labs format)")
+                        
+                elif model.startswith("flux-kontext-apps/"):
+                    # flux-kontext-apps models use input_image_1 and input_image_2 parameters
+                    input_data["input"]["input_image_1"] = image_1_b64
+                    print("Added first image as 'input_image_1' (flux-kontext-apps format)")
+                    
+                    if image_2 is not None:
+                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                        input_data["input"]["input_image_2"] = image_2_b64
+                        print("Added second image as 'input_image_2' (flux-kontext-apps format)")
                 else:
-                    # Single image
-                    input_data["input"]["image_url"] = image_1_b64
-                    print("Added single image as 'image_url'")
+                    raise Exception(f"Unknown model family: {model}")
                 
                 print(f"Starting Flux Context editing with model: {model}")
                 print(f"Using version: {version_id}")
