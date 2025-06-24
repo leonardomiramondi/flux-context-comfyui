@@ -8,7 +8,7 @@ import numpy as np
 
 class FluxContextNode:
     """
-    ComfyUI node for generating images using Flux models via Replicate API
+    ComfyUI node for Flux Context (Kontext) - image editing and transformation using text prompts with context images
     """
     
     def __init__(self):
@@ -20,70 +20,46 @@ class FluxContextNode:
             "required": {
                 "api_token": ("STRING", {
                     "multiline": False,
-                    "default": "r8_"
+                    "default": "r8_",
+                    "placeholder": "Enter your Replicate API token"
                 }),
-                "prompt": ("STRING", {
+                "input_image": ("IMAGE",),
+                "editing_prompt": ("STRING", {
                     "multiline": True,
-                    "default": "A beautiful landscape with mountains and a lake"
+                    "default": "Make this a watercolor painting",
+                    "placeholder": "Describe how you want to edit the image"
                 }),
-                "model": (["black-forest-labs/flux-schnell", "black-forest-labs/flux-dev", "black-forest-labs/flux-pro"], {
-                    "default": "black-forest-labs/flux-schnell"
-                }),
-                "width": ("INT", {
-                    "default": 1024,
-                    "min": 256,
-                    "max": 2048,
-                    "step": 64
-                }),
-                "height": ("INT", {
-                    "default": 1024,
-                    "min": 256,
-                    "max": 2048,
-                    "step": 64
-                }),
-                "num_inference_steps": ("INT", {
-                    "default": 4,
-                    "min": 1,
-                    "max": 50,
-                    "step": 1
-                }),
-                "guidance_scale": ("FLOAT", {
-                    "default": 0.0,
-                    "min": 0.0,
-                    "max": 20.0,
-                    "step": 0.1
-                }),
-                "seed": ("INT", {
-                    "default": -1,
-                    "min": -1,
-                    "max": 2147483647
+                "model": (["black-forest-labs/flux-kontext-pro", "black-forest-labs/flux-kontext-max"], {
+                    "default": "black-forest-labs/flux-kontext-pro"
                 }),
             },
             "optional": {
-                "image_input_1": ("IMAGE",),
-                "image_input_2": ("IMAGE",),
-                "negative_prompt": ("STRING", {
-                    "multiline": True,
-                    "default": ""
+                "context_image": ("IMAGE",),
+                "context_strength": ("FLOAT", {
+                    "default": 0.8,
+                    "min": 0.1,
+                    "max": 1.0,
+                    "step": 0.1,
+                    "display": "slider"
+                }),
+                "preserve_identity": ("BOOLEAN", {
+                    "default": True
                 }),
                 "output_format": (["webp", "jpg", "png"], {
                     "default": "webp"
                 }),
                 "output_quality": ("INT", {
-                    "default": 80,
+                    "default": 90,
                     "min": 1,
                     "max": 100,
                     "step": 1
-                }),
-                "image_mode": (["img2img", "reference", "blend"], {
-                    "default": "img2img"
                 }),
             }
         }
     
     RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "generate"
-    CATEGORY = "image/generation"
+    FUNCTION = "edit_image"
+    CATEGORY = "image/editing"
     
     def pil_to_tensor(self, image):
         """Convert PIL image to tensor format expected by ComfyUI"""
@@ -92,8 +68,12 @@ class FluxContextNode:
     
     def tensor_to_base64(self, tensor):
         """Convert ComfyUI tensor to base64 string for API upload"""
+        # Handle tensor dimensions
+        if len(tensor.shape) == 4:
+            tensor = tensor.squeeze(0)
+        
         # Convert tensor to PIL Image
-        i = 255. * tensor.cpu().numpy().squeeze()
+        i = 255. * tensor.cpu().numpy()
         img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
         
         # Convert to base64
@@ -149,11 +129,11 @@ class FluxContextNode:
             elif status == "failed":
                 raise Exception(f"Prediction failed: {prediction.get('error', 'Unknown error')}")
             elif status in ["starting", "processing"]:
-                print(f"Prediction status: {status}")
-                time.sleep(2)
+                print(f"Flux Context editing in progress: {status}")
+                time.sleep(3)
             else:
                 print(f"Unknown status: {status}")
-                time.sleep(2)
+                time.sleep(3)
         
         raise Exception("Prediction timed out")
     
@@ -169,69 +149,57 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
-    def generate(self, api_token, prompt, model, width, height, num_inference_steps, guidance_scale, seed, 
-                image_input_1=None, image_input_2=None, negative_prompt="", output_format="webp", 
-                output_quality=80, image_mode="img2img"):
-        """Main generation function"""
+    def enhance_prompt(self, prompt, preserve_identity, context_image):
+        """Enhance the editing prompt with context-specific instructions"""
+        enhanced_prompt = prompt
+        
+        if preserve_identity and "person" in prompt.lower() or "face" in prompt.lower():
+            enhanced_prompt += " while keeping the same facial features and identity"
+        
+        if context_image is not None:
+            enhanced_prompt += " using the second image as visual reference for style and composition"
+        
+        return enhanced_prompt
+    
+    def edit_image(self, api_token, input_image, editing_prompt, model, context_image=None, 
+                   context_strength=0.8, preserve_identity=True, output_format="webp", output_quality=90):
+        """Main image editing function using Flux Context"""
         
         # Validate API token
         if not api_token or not api_token.strip():
-            raise ValueError("API token is required. Please enter your Replicate API token.")
+            raise ValueError("API token is required. Get yours from replicate.com/account/api-tokens")
         
         # Store the API token for this generation
         self.api_token = api_token.strip()
         
-        # Prepare input data
+        # Convert input image to base64
+        input_image_b64 = self.tensor_to_base64(input_image)
+        
+        # Enhance prompt for better context understanding
+        enhanced_prompt = self.enhance_prompt(editing_prompt, preserve_identity, context_image)
+        
+        # Get model version
+        version = self.get_model_version(model)
+        
+        # Prepare input data for Flux Context
         input_data = {
-            "version": self.get_model_version(model),
+            "version": version,
             "input": {
-                "prompt": prompt,
-                "width": width,
-                "height": height,
-                "num_inference_steps": num_inference_steps,
+                "prompt": enhanced_prompt,
+                "input_image": input_image_b64,
                 "output_format": output_format,
                 "output_quality": output_quality,
             }
         }
         
-        # Add guidance scale for models that support it
-        if model != "black-forest-labs/flux-schnell":
-            input_data["input"]["guidance_scale"] = guidance_scale
+        # Add context image if provided
+        if context_image is not None:
+            context_image_b64 = self.tensor_to_base64(context_image)
+            input_data["input"]["context_image"] = context_image_b64
+            input_data["input"]["context_strength"] = context_strength
         
-        # Add seed if specified
-        if seed != -1:
-            input_data["input"]["seed"] = seed
-        
-        # Add negative prompt if provided
-        if negative_prompt.strip():
-            input_data["input"]["negative_prompt"] = negative_prompt
-        
-        # Handle image inputs based on mode
-        if image_input_1 is not None:
-            image1_b64 = self.tensor_to_base64(image_input_1)
-            
-            if image_mode == "img2img":
-                # Use first image as base for img2img
-                input_data["input"]["image"] = image1_b64
-                input_data["input"]["prompt_strength"] = 0.8
-                
-            elif image_mode == "reference":
-                # Use first image as style reference
-                input_data["input"]["style_reference"] = image1_b64
-                
-            elif image_mode == "blend" and image_input_2 is not None:
-                # Blend two images (use first as base, second as overlay)
-                input_data["input"]["image"] = image1_b64
-                image2_b64 = self.tensor_to_base64(image_input_2)
-                input_data["input"]["overlay_image"] = image2_b64
-                input_data["input"]["blend_strength"] = 0.5
-            else:
-                # Default to img2img mode
-                input_data["input"]["image"] = image1_b64
-                input_data["input"]["prompt_strength"] = 0.8
-        
-        print(f"Creating prediction with model: {model}")
-        print(f"Prompt: {prompt}")
+        print(f"Starting Flux Context editing with model: {model}")
+        print(f"Editing prompt: {enhanced_prompt}")
         
         # Create prediction
         prediction = self.create_prediction(input_data)
@@ -243,24 +211,24 @@ class FluxContextNode:
         result = self.wait_for_prediction(prediction_id)
         
         # Get output URL
-        output_urls = result.get("output", [])
-        if not output_urls:
+        output_url = result.get("output")
+        if not output_url:
             raise Exception("No output generated")
         
-        # Download and return the generated image
-        image_url = output_urls[0] if isinstance(output_urls, list) else output_urls
-        print(f"Downloading image from: {image_url}")
+        # Handle both single URL and list of URLs
+        if isinstance(output_url, list):
+            output_url = output_url[0]
         
-        return (self.download_image(image_url),)
+        print(f"Downloading edited image from: {output_url}")
+        
+        return (self.download_image(output_url),)
     
     def get_model_version(self, model):
-        """Get the latest version hash for the specified model"""
-        # These are the current version hashes as of the latest update
-        # You may need to update these periodically
+        """Get the latest version hash for the specified Flux Context model"""
+        # These version hashes may need updates - check Replicate model pages
         model_versions = {
-            "black-forest-labs/flux-schnell": "f2ab8a5569bb018f84ed58c6f64e7c17ff52d7ffe90a8b95f67a266bd54c987f",
-            "black-forest-labs/flux-dev": "d7e6d19786dafebe13ff7ba6ad17bdbb8644c96a3e28b4d1fe5eef649b8b7899",
-            "black-forest-labs/flux-pro": "fdf5b5f32094f18d55388c3c0d2c01de456073b2c9b1a5b7f6af5b3e12e3b97e"
+            "black-forest-labs/flux-kontext-pro": "latest",
+            "black-forest-labs/flux-kontext-max": "latest",
         }
         
-        return model_versions.get(model, model_versions["black-forest-labs/flux-schnell"]) 
+        return model_versions.get(model, "latest") 
