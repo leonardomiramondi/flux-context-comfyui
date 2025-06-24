@@ -1,99 +1,151 @@
 # Flux Context ComfyUI Node
 
-A ComfyUI custom node for **Flux Context** (Kontext) - advanced AI-powered image editing using text prompts. This node integrates with Replicate's Flux Kontext models to perform sophisticated image transformations.
+A ComfyUI custom node for **Flux Context (Kontext)** - advanced image editing and transformation using text prompts via the Replicate API.
 
 ## What is Flux Context?
 
-Flux Context (Kontext) is a specialized AI model from Black Forest Labs designed for **image editing**, not generation. It excels at:
+Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** model that allows you to transform existing images using natural language descriptions. Unlike image generation models, Flux Context specializes in:
 
-- **Style Transfer** - Convert photos to watercolor, oil painting, sketches, etc.
-- **Object Editing** - Modify hairstyles, clothing, colors, accessories
-- **Text Editing** - Replace text in signs, posters, labels
-- **Background Changes** - Swap environments while preserving subjects
-- **Artistic Transformations** - Apply specific art styles with precision
+- **Style Transfer**: Convert photos to different art styles (watercolor, oil painting, sketches)
+- **Object/Clothing Changes**: Modify hairstyles, add accessories, change colors  
+- **Text Editing**: Replace text in signs, posters, and labels
+- **Background Swapping**: Change environments while preserving subjects
+- **Character Consistency**: Maintain identity across multiple edits
 
 ## Features
 
-- **Direct Replicate API Integration** - No external dependencies
-- **Built-in API Token Input** - No environment variables needed
-- **Two Image Inputs** - Primary image to edit + optional reference image
-- **Real-time Progress** - Monitor editing progress in ComfyUI console
-- **Multiple Models** - Choose between Kontext Pro and Kontext Max
-- **Two Image Inputs** - Supports both single-image editing and two-image blending/referencing.
-- **Dynamic Model Support** - Automatically adapts parameters for different model requirements (e.g., `black-forest-labs` vs. `flux-kontext-apps`).
-- **Smart Image Sizing** - Retries with smaller image sizes on failure to prevent crashes with large inputs.
-- **Automatic Model Fallback** - Intelligently switches from a multi-image model to a single-image one if only one image is provided, preventing errors.
+- ✅ **Text-based image editing** using natural language prompts
+- ✅ **Two image inputs** ("image 1" required, "image 2" optional for reference)
+- ✅ **Professional models**: Flux Kontext Pro and Max
+- ✅ **API token input** built into the node interface
+- ✅ **Multiple output formats** (JPG/PNG)
+- ✅ **Smart image compression** for API compatibility
+- ✅ **Error handling** with automatic retry logic
+
+## Available Models
+
+- **black-forest-labs/flux-kontext-pro**: State-of-the-art performance with high-quality outputs
+- **black-forest-labs/flux-kontext-max**: Premium model with maximum performance and improved typography
 
 ## Installation
 
-```bash
-# Navigate to your ComfyUI custom_nodes directory
-# Example: ComfyUI/custom_nodes/
-cd path/to/your/ComfyUI/custom_nodes/
+### Method 1: ComfyUI Manager (Recommended)
+1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager)
+2. Search for "Flux Context" in the manager
+3. Install and restart ComfyUI
 
-# Clone the repository
-git clone https://github.com/your-username/flux-context-comfyui.git
-cd flux-context-comfyui
+### Method 2: Manual Installation
 
-# Install dependencies
-pip install -r requirements.txt
-```
+1. **Find your ComfyUI installation directory**:
+   ```bash
+   # Common locations:
+   # Windows: C:\ComfyUI\ or C:\Users\[username]\ComfyUI\
+   # Mac: /Applications/ComfyUI/ or ~/ComfyUI/
+   # Linux: ~/ComfyUI/ or /opt/ComfyUI/
+   ```
 
-Then restart ComfyUI.
+2. **Navigate to custom nodes directory**:
+   ```bash
+   cd [your-comfyui-path]/custom_nodes/
+   ```
+
+3. **Clone this repository**:
+   ```bash
+   git clone https://github.com/leonardomiramondi/flux-context-comfyui.git
+   ```
+
+4. **Install dependencies**:
+   ```bash
+   cd flux-context-comfyui
+   pip install -r requirements.txt
+   ```
+
+5. **Restart ComfyUI** completely
+
+## Setup
+
+1. **Get a Replicate API token**:
+   - Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
+   - Create a new token
+   - Copy the token (starts with `r8_`)
+
+2. **Add the node to your workflow**:
+   - In ComfyUI, add the **Flux Context Node** (found under `image/editing`)
+   - Paste your API token in the "api_token" field
 
 ## Usage
 
-1. **Add the node** - Search for "Flux Context" in ComfyUI node browser
-2. **Connect an image** to the `image_1` input (the image you want to edit)
-3. **Enter your Replicate API token** - Get yours from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
-4. **Write an editing prompt** - e.g., "Make this a watercolor painting"
-5. **Optional**: Connect a second image to `image_2` for style reference
-6. **Run the workflow**
+### Basic Image Editing
+1. Connect an image to **"image 1"** (required)
+2. Enter your **editing prompt** describing the desired changes
+3. Choose your **model** (Pro or Max)
+4. Select **output format** (JPG or PNG)
+5. Run the workflow
 
-## Node Inputs
+### Reference-Style Editing  
+1. Connect your main image to **"image 1"**
+2. Connect a reference/style image to **"image 2"** (optional)
+3. Describe the transformation in the **editing prompt**
+4. The model will use image 2 as a style reference
 
-### Required:
-- `api_token` - Your Replicate API token
-- `image_1` - The image you want to edit
-- `editing_prompt` - Text description of how to edit the image
-- `model` - Choose between flux-kontext-pro or flux-kontext-max
+### Example Prompts
 
-### Optional:
-- `image_2` - Reference image for style/composition guidance
+**Style Transfer:**
+- "Transform this into a watercolor painting"
+- "Make this look like a Renaissance oil painting"
+- "Convert to a pencil sketch with detailed shading"
 
-## Example Prompts
+**Object Changes:**
+- "Change the red car to a blue motorcycle"
+- "Replace the person's outfit with a business suit"
+- "Add sunglasses and a hat to the person"
 
-- `"Transform this portrait into an oil painting"`
-- `"Change the red car to blue while keeping everything else the same"`
-- `"Make this photo look like a vintage 1950s advertisement"`
-- `"Convert this landscape into a watercolor painting with soft brushstrokes"`
-- `"Replace the text 'SALE' with 'NEW' in this sign"`
+**Background Edits:**
+- "Change the background to a beach scene while keeping the person"
+- "Replace the indoor setting with a forest"
+- "Add falling snow to this winter scene"
 
-## Models Available
+**Text Editing:**
+- "Change the sign text from 'OPEN' to 'CLOSED'"
+- "Replace the billboard text with 'SALE 50% OFF'"
 
-- **flux-kontext-pro** - High-quality, balanced performance
-- **flux-kontext-max** - Maximum quality, best for professional work
+## API Requirements
+
+- **Replicate account** with available credits
+- **Valid API token** (get from [replicate.com](https://replicate.com/account/api-tokens))
+- **Internet connection** for API calls
 
 ## Troubleshooting
 
-### "Invalid version or not permitted" Error
-- Make sure you're using a valid Replicate API token
-- Check that your token has permissions for the selected model
+### "Invalid API token"
+- Verify your token starts with `r8_`
+- Check you have credits in your Replicate account
+- Ensure the token has proper permissions
 
-### Node Not Appearing
-- Restart ComfyUI completely after installation
-- Check the console for any error messages during startup
+### "Image too large" errors
+- The node automatically compresses large images
+- Try reducing your input image resolution if issues persist
+- Maximum recommended size: 2048x2048 pixels
 
-## Updates
+### Node not appearing
+- Ensure you've restarted ComfyUI completely after installation
+- Check that `requirements.txt` packages installed successfully
+- Verify the node files are in the correct custom_nodes directory
 
-This node automatically updates when you use ComfyUI Manager's "Update All" feature. No manual intervention needed!
+### "Model not found" errors
+- Only use the supported models (flux-kontext-pro or flux-kontext-max)
+- Ensure your Replicate account has access to these models
 
-## Requirements
+## Contributing
 
-- ComfyUI
-- Active internet connection
-- Replicate API account and token
+Feel free to submit issues, feature requests, or pull requests on the [GitHub repository](https://github.com/leonardomiramondi/flux-context-comfyui).
 
 ## License
 
-MIT License - see LICENSE file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+- **Black Forest Labs** for the Flux Context models
+- **Replicate** for API infrastructure  
+- **ComfyUI** community for the amazing framework 
