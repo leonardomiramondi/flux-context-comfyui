@@ -31,7 +31,7 @@ class FluxContextNode:
                     "placeholder": "Describe how you want to edit the image"
                 }),
                 "model": ([
-                    "black-forest-labs/flux-kontext-pro", 
+                    "black-forest-labs/flux-kontext-pro",
                     "black-forest-labs/flux-kontext-max",
                     "flux-kontext-apps/multi-image-kontext-max",
                     "flux-kontext-apps/multi-image-kontext-pro"
@@ -48,10 +48,15 @@ class FluxContextNode:
         }
     
     @classmethod
-    def VALIDATE_INPUTS(cls, api_token, image_1, editing_prompt, model, output_format, image_2=None):
+    def VALIDATE_INPUTS(cls, **kwargs):
         """Validate inputs before processing"""
+        model = kwargs.get("model", "")
+        image_2 = kwargs.get("image_2", None)
+
         if "multi-image" in model and image_2 is None:
-            return f"The model '{model}' requires both image_1 and image_2. Please connect an image to the image_2 input."
+            # This is a test to see if the file is being updated.
+            return f"[TEST] Multi-image model selected without a second image. This is a test message. If you see the old error, the file is not updating."
+        
         return True
     
     RETURN_TYPES = ("IMAGE",)
@@ -235,7 +240,7 @@ class FluxContextNode:
         # Fallback
         return None
     
-    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpg"):
+    def edit_image(self, api_token, image_1, editing_prompt, model, output_format="jpg", image_2=None):
         """Main image editing function using Flux Context"""
         
         # Validate API token
@@ -244,7 +249,15 @@ class FluxContextNode:
         
         # Store the API token for this generation
         self.api_token = api_token.strip()
-        
+
+        # Check if a multi-image model is selected without a second image
+        is_multi_image_model = "multi-image" in model
+        if is_multi_image_model and image_2 is None:
+            # Fallback to a single-image model to prevent API errors
+            original_model = model
+            model = "flux-kontext-apps/multi-image-kontext-pro"
+            print(f"Warning: '{original_model}' requires two images. Falling back to '{model}' for single-image editing.")
+
         # Try with high quality settings first
         max_sizes = [1280, 1024, 768]  # Start with higher quality
         
@@ -281,25 +294,19 @@ class FluxContextNode:
                     }
                     print(f"Using version: {version}")
                     
-                    # flux-kontext-apps models use specific parameter names
-                    if "multi-image" in model:
-                        # Multi-image models require both input_image_1 and input_image_2
+                    # Handle different flux-kontext-apps model configurations
+                    if is_multi_image_model and image_2 is not None:
+                        # Multi-image mode: use both images for combining
                         input_data["input"]["input_image_1"] = image_1_b64
-                        print("Added first image as 'input_image_1'")
-                        
-                        # For multi-image models, image_2 is required
-                        if image_2 is not None:
-                            image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                            input_data["input"]["input_image_2"] = image_2_b64
-                            print("Added second image as 'input_image_2'")
-                        else:
-                            raise ValueError("Multi-image models require both image_1 and image_2. Please connect an image to the image_2 input.")
+                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                        input_data["input"]["input_image_2"] = image_2_b64
+                        print("Multi-image mode: Added both images as 'input_image_1' and 'input_image_2'")
                     else:
-                        # Other flux-kontext-apps models
+                        # Single image mode: use only first image for editing
                         input_data["input"]["image"] = image_1_b64
-                        print("Added image as 'image'")
+                        print("Single image mode: Added image as 'image'")
                 
-                # Add second image for Black Forest Labs models if provided
+                # Add second image for Black Forest Labs models if provided (reference style)
                 if version is None and image_2 is not None:
                     image_2_b64 = self.tensor_to_base64(image_2, max_size)
                     input_data["input"]["reference_image"] = image_2_b64

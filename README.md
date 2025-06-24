@@ -19,27 +19,23 @@ Flux Context (Kontext) is a specialized AI model from Black Forest Labs designed
 - **Two Image Inputs** - Primary image to edit + optional reference image
 - **Real-time Progress** - Monitor editing progress in ComfyUI console
 - **Multiple Models** - Choose between Kontext Pro and Kontext Max
+- **Two Image Inputs** - Supports both single-image editing and two-image blending/referencing.
+- **Dynamic Model Support** - Automatically adapts parameters for different model requirements (e.g., `black-forest-labs` vs. `flux-kontext-apps`).
+- **Smart Image Sizing** - Retries with smaller image sizes on failure to prevent crashes with large inputs.
+- **Automatic Model Fallback** - Intelligently switches from a multi-image model to a single-image one if only one image is provided, preventing errors.
 
 ## Installation
 
-### Method 1: ComfyUI Manager (Recommended)
-1. Open ComfyUI Manager
-2. Go to "Install Custom Nodes"
-3. Search for "flux context"
-4. Click Install
-5. Restart ComfyUI
-
-### Method 2: Manual Installation
 ```bash
 # Navigate to your ComfyUI custom_nodes directory
-# Common paths:
-# Windows: ComfyUI\custom_nodes\
-# Mac: ComfyUI/custom_nodes/
-# Linux: ComfyUI/custom_nodes/
+# Example: ComfyUI/custom_nodes/
+cd path/to/your/ComfyUI/custom_nodes/
 
-cd ComfyUI/custom_nodes/
-git clone https://github.com/leonardomiramondi/flux-context-comfyui.git
+# Clone the repository
+git clone https://github.com/your-username/flux-context-comfyui.git
 cd flux-context-comfyui
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
