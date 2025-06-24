@@ -1,0 +1,14 @@
+name: "Flux Context Node"
+description: "Image editing with Flux Context (Kontext) AI models via Replicate API"
+author: "Leonardo Miramondi"
+title: "Flux Context ComfyUI Node"
+reference: "https://github.com/leonardomiramondi/flux-context-comfyui"
+files: 
+  - "flux_context_node.py"
+  - "__init__.py"
+install_type: "git-clone"
+pip: 
+  - "requests>=2.25.0"
+  - "Pillow>=8.0.0"
+nodename_pattern: "FluxContext"
+js_path: "" 
