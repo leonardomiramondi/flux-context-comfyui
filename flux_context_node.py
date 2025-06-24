@@ -30,15 +30,20 @@ class FluxContextNode:
                     "default": "Make this a watercolor painting",
                     "placeholder": "Describe how you want to edit the image"
                 }),
-                "model": (["black-forest-labs/flux-kontext-pro", "black-forest-labs/flux-kontext-max"], {
-                    "default": "black-forest-labs/flux-kontext-pro"
+                "model": ([
+                    "black-forest-labs/flux-kontext-pro", 
+                    "black-forest-labs/flux-kontext-max",
+                    "flux-kontext-apps/multi-image-kontext-max",
+                    "flux-kontext-apps/multi-image-kontext-pro"
+                ], {
+                    "default": "flux-kontext-apps/multi-image-kontext-max"
+                }),
+                "output_format": (["jpg", "png"], {
+                    "default": "jpg"
                 }),
             },
             "optional": {
                 "image_2": ("IMAGE",),
-                "output_format": (["jpg", "png"], {
-                    "default": "jpg"
-                }),
             }
         }
     
@@ -184,13 +189,18 @@ class FluxContextNode:
     
     def get_model_version(self, model):
         """Get the correct version for the specified Flux Context model"""
-        # Using actual working model names for Flux Kontext models from Replicate
-        if model == "black-forest-labs/flux-kontext-pro":
-            return "black-forest-labs/flux-kontext-pro"
-        elif model == "black-forest-labs/flux-kontext-max":
-            return "black-forest-labs/flux-kontext-max"
-        else:
-            return "black-forest-labs/flux-kontext-pro"  # default fallback
+        # Version hashes for different model types
+        model_versions = {
+            # Original Black Forest Labs models (use direct model names)
+            "black-forest-labs/flux-kontext-pro": None,  # Use direct model name
+            "black-forest-labs/flux-kontext-max": None,  # Use direct model name
+            
+            # Flux Kontext Apps models (require version hashes)
+            "flux-kontext-apps/multi-image-kontext-max": "7ece0bbacaa02ed77e1c59aef7efc5b4b4adbbfb5cf7e82a69d3b4da37c0b5f1",
+            "flux-kontext-apps/multi-image-kontext-pro": "63a84b00b7d75c00c7ba61dbb878b33c30a6fbe81ae2f39e6b37c60e11b57ad6"
+        }
+        
+        return model_versions.get(model, model_versions["flux-kontext-apps/multi-image-kontext-max"])
     
     def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpg"):
         """Main image editing function using Flux Context"""
@@ -212,29 +222,47 @@ class FluxContextNode:
                 # Convert primary image to base64 with high quality
                 image_1_b64 = self.tensor_to_base64(image_1, max_size)
                 
-                # Get model (use direct model name)
-                model_name = model
+                # Get model version
+                version = self.get_model_version(model)
                 
-                # Prepare input data using correct Replicate API format for Flux Kontext
-                input_data = {
-                    "model": model_name,
-                    "input": {
-                        "prompt": editing_prompt,
-                        "image": image_1_b64,  # Main image to edit
-                        "output_format": output_format,
+                # Prepare input data based on model type
+                if version is None:
+                    # For Black Forest Labs models (use direct model name)
+                    input_data = {
+                        "model": model,
+                        "input": {
+                            "prompt": editing_prompt,
+                            "image": image_1_b64,
+                            "output_format": output_format,
+                        }
                     }
-                }
+                else:
+                    # For flux-kontext-apps models (use version hash)
+                    input_data = {
+                        "version": version,
+                        "input": {
+                            "prompt": editing_prompt,
+                            "image": image_1_b64,
+                            "output_format": output_format,
+                        }
+                    }
                 
-                # Add second image if provided (as reference image for style)
+                # Add second image if provided
                 if image_2 is not None:
                     image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                    input_data["input"]["reference_image"] = image_2_b64
+                    if "multi-image" in model:
+                        # For multi-image models, use specific parameter name
+                        input_data["input"]["image2"] = image_2_b64
+                    else:
+                        input_data["input"]["reference_image"] = image_2_b64
                 
-                print(f"Starting Flux Context editing with model: {model_name}")
+                print(f"Starting Flux Context editing with model: {model}")
+                if version:
+                    print(f"Version: {version}")
                 print(f"Editing prompt: {editing_prompt}")
                 print(f"Output format: {output_format}")
                 if image_2 is not None:
-                    print("Using reference image for style guidance")
+                    print("Using second image for combining/reference")
                 
                 # Create prediction
                 prediction = self.create_prediction(input_data)
