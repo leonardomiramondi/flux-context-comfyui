@@ -6,7 +6,7 @@ from PIL import Image
 import torch
 import numpy as np
 
-class FluxReplicateNode:
+class FluxContextNode:
     """
     ComfyUI node for generating images using Flux models via Replicate API
     """

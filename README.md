@@ -1,104 +1,24 @@
-# Flux Replicate ComfyUI Node
+# Flux Context ComfyUI Node
 
-A custom ComfyUI node that enables image generation using Flux models through the Replicate API, with support for multiple image inputs and advanced processing modes.
+A custom ComfyUI node for Flux image generation with context support via Replicate API.
 
-## Features
+## Installation
 
-- 🎨 **Multiple Flux Models**: Support for Flux Schnell, Flux Dev, and Flux Pro
-- 🖼️ **Dual Image Support**: Two image inputs for various processing modes
-- ⚙️ **Advanced Controls**: Configurable dimensions, steps, guidance scale, and more
-- 🔧 **ComfyUI Integration**: Seamless integration with your existing ComfyUI workflows
-- 🚀 **High Quality Output**: Support for multiple output formats (WebP, JPG, PNG)
-- 🎭 **Multiple Modes**: img2img, style reference, and image blending capabilities
-
-## Quick Start
-
-### Method 1: One-Liner Installation (Recommended)
-
-**For macOS/Linux:**
 ```bash
-cd ComfyUI/custom_nodes/ && git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git && cd flux-replicate-comfyui && ./install.sh
+cd ComfyUI/custom_nodes/ && git clone https://github.com/leonardomiramondi/flux-context-comfyui.git && cd flux-context-comfyui && pip install -r requirements.txt
 ```
 
-**For Windows:**
-```cmd
-cd ComfyUI\custom_nodes && git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git && cd flux-replicate-comfyui && pip install -r requirements.txt
-```
-
-### Method 2: Step-by-Step Git Clone
-
-1. **Navigate to your ComfyUI custom nodes directory**:
-   ```bash
-   cd ComfyUI/custom_nodes/
-   ```
-
-2. **Clone this repository**:
-   ```bash
-   git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   cd flux-replicate-comfyui
-   pip install -r requirements.txt
-   # OR run the automated installer
-   ./install.sh
-   ```
-
-4. **Restart ComfyUI**
-
-### Method 3: Manual Download
-
-1. **Download the repository**:
-   - Click the green "Code" button on GitHub
-   - Select "Download ZIP"
-   - Extract the ZIP file
-
-2. **Copy to ComfyUI**:
-   ```bash
-   # Move the extracted folder to your ComfyUI custom nodes directory
-   mv flux-replicate-comfyui-main ComfyUI/custom_nodes/flux-replicate-comfyui
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   cd ComfyUI/custom_nodes/flux-replicate-comfyui
-   pip install -r requirements.txt
-   ```
-
-4. **Restart ComfyUI**
-
-## Verification
-
-After installation, the node should appear in ComfyUI under:
-**Add Node → image → generation → Flux Replicate Context**
+Restart ComfyUI. The node will appear under: **Add Node → image → generation → Flux Context**
 
 ## Usage
 
-### Basic Text-to-Image Generation
+1. Add the "Flux Context" node to your workflow
+2. Enter your Replicate API token (get from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens))
+3. Enter your text prompt
+4. Optionally connect 1-2 images for context/reference
+5. Choose your Flux model (Schnell/Dev/Pro) and settings
 
-1. Add the "Flux Replicate Context" node to your workflow
-2. **Enter your Replicate API token** in the `api_token` field (get one from [replicate.com](https://replicate.com/account/api-tokens))
-3. Connect a text input to the `prompt` parameter
-4. Configure your desired settings:
-   - **Model**: Choose between Flux Schnell (fastest), Flux Dev (balanced), or Flux Pro (highest quality)
-   - **Dimensions**: Set width and height (multiples of 64, max 2048x2048)
-   - **Steps**: Number of inference steps (4-50, lower is faster)
-   - **Guidance Scale**: How closely to follow the prompt (Dev/Pro only)
-   - **Seed**: For reproducible results (-1 for random)
-
-### Image Generation Modes
-
-1. **Text-to-Image**: Use only the text prompt (no image inputs)
-2. **Image-to-Image**: Connect an image to `image_input_1` and set mode to "img2img"
-3. **Style Reference**: Connect a reference image to `image_input_1` and set mode to "reference"
-4. **Image Blending**: Connect two images to `image_input_1` and `image_input_2`, set mode to "blend"
-
-### Advanced Parameters
-
-- **Negative Prompt**: Specify what you don't want in the image
-- **Output Format**: Choose between WebP (smallest), JPG (compatible), or PNG (lossless)
-- **Output Quality**: JPEG/WebP compression quality (1-100)
+Get your Replicate API token from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
 
 ## Node Parameters
 

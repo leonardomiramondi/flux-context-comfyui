@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Flux Replicate ComfyUI Node Installation Script
+# Flux Context ComfyUI Node Installation Script
 
 set -e
 
-echo "🚀 Installing Flux Replicate ComfyUI Node..."
+echo "🚀 Installing Flux Context ComfyUI Node..."
 
 # Check if we're in the right directory
 if [ ! -f "requirements.txt" ]; then
@@ -26,7 +26,7 @@ fi
 echo ""
 echo "✅ Installation complete!"
 echo "   Please restart ComfyUI to load the new node."
-echo "   The node will appear under: Add Node → image → generation → Flux Replicate Context"
+echo "   The node will appear under: Add Node → image → generation → Flux Context"
 echo ""
 echo "ℹ️  Don't forget to get your Replicate API token from:"
 echo "   https://replicate.com/account/api-tokens" 
