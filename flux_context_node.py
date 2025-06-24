@@ -229,10 +229,10 @@ class FluxContextNode:
     def edit_image(self, api_token, **kwargs):
         """Main image editing function using Flux Context"""
         
-        # Extract parameters from kwargs
+        # Extract parameters from kwargs (due to space handling in parameter names)
         image_1 = kwargs.get("image 1")
-        image_2 = kwargs.get("image 2")
-        editing_prompt = kwargs.get("editing_prompt")
+        image_2 = kwargs.get("image 2") 
+        editing_prompt = kwargs.get("editing_prompt", "Make this a watercolor painting")
         model = kwargs.get("model", "black-forest-labs/flux-kontext-pro")
         output_format = kwargs.get("output_format", "jpg")
         
@@ -256,46 +256,58 @@ class FluxContextNode:
                 # Convert primary image to base64 with high quality
                 image_1_b64 = self.tensor_to_base64(image_1, max_size)
                 
-                # Prepare input data using version instead of model
-                input_data = {
-                    "version": version_id,
-                    "input": {
-                        "prompt": editing_prompt,
-                        "output_format": output_format,
+                # Determine which parameter format to use based on model family
+                if "flux-kontext-apps" in model:
+                    # flux-kontext-apps models use different parameter names
+                    input_data = {
+                        "version": version_id,
+                        "input": {
+                            "prompt": editing_prompt,
+                            "output_format": output_format,
+                        }
                     }
-                }
-                
-                # Handle different parameter formats for different model families
-                if model.startswith("black-forest-labs/"):
+                    
+                    # For flux-kontext-apps models, try different parameter names
+                    # Based on the model name, use appropriate parameter names
+                    if "multi-image" in model:
+                        # Multi-image models might use input_image_1, input_image_2
+                        input_data["input"]["input_image_1"] = image_1_b64
+                        if image_2 is not None:
+                            image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                            input_data["input"]["input_image_2"] = image_2_b64
+                            print("Added second image as 'input_image_2'")
+                        else:
+                            print("Warning: Multi-image model but only one image provided")
+                    else:
+                        # Single image apps might use 'image' or 'input_image'
+                        input_data["input"]["image"] = image_1_b64
+                        
+                else:
                     # Black Forest Labs models use image_url parameter
+                    input_data = {
+                        "version": version_id,
+                        "input": {
+                            "prompt": editing_prompt,
+                            "output_format": output_format,
+                        }
+                    }
+                    
+                    # Add images - single image or array of images
                     if image_2 is not None:
                         # Two images - pass as array
                         image_2_b64 = self.tensor_to_base64(image_2, max_size)
                         input_data["input"]["image_url"] = [image_1_b64, image_2_b64]
-                        print("Added both images as array to 'image_url' (Black Forest Labs format)")
+                        print("Added both images as array to 'image_url'")
                     else:
                         # Single image
                         input_data["input"]["image_url"] = image_1_b64
-                        print("Added single image as 'image_url' (Black Forest Labs format)")
-                        
-                elif model.startswith("flux-kontext-apps/"):
-                    # flux-kontext-apps models use input_image_1 and input_image_2 parameters
-                    input_data["input"]["input_image_1"] = image_1_b64
-                    print("Added first image as 'input_image_1' (flux-kontext-apps format)")
-                    
-                    if image_2 is not None:
-                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                        input_data["input"]["input_image_2"] = image_2_b64
-                        print("Added second image as 'input_image_2' (flux-kontext-apps format)")
-                else:
-                    raise Exception(f"Unknown model family: {model}")
+                        print("Added single image to 'image_url'")
                 
-                print(f"Starting Flux Context editing with model: {model}")
+                print(f"Using model: {model}")
                 print(f"Using version: {version_id}")
-                print(f"Editing prompt: {editing_prompt}")
-                print(f"Output format: {output_format}")
+                print(f"Input parameters: {list(input_data['input'].keys())}")
                 
-                # Create prediction
+                # Make the API prediction request
                 prediction = self.create_prediction(input_data)
                 prediction_id = prediction["id"]
                 
@@ -318,13 +330,18 @@ class FluxContextNode:
                 return (self.download_image(output_url),)
                 
             except Exception as e:
-                error_msg = str(e).lower()
-                if ("payload too large" in error_msg or "json parsing" in error_msg or "request entity too large" in error_msg) and max_size > 768:
-                    print(f"Retrying with smaller image size due to: {str(e)}")
-                    continue  # Try next smaller size
-                else:
-                    # If it's not a size issue or we're already at minimum size, raise the error
-                    raise e
+                error_msg = str(e)
+                print(f"Attempt with max_size {max_size} failed: {error_msg}")
+                
+                # If this is the last attempt, try to provide helpful error info
+                if max_size == max_sizes[-1]:
+                    if "version is required" in error_msg or "Additional property" in error_msg:
+                        print(f"API parameter error. Model: {model}")
+                        print(f"This suggests the parameter names are incorrect for this model.")
+                        print(f"Tried parameters: {list(input_data['input'].keys()) if 'input_data' in locals() else 'N/A'}")
+                        
+                    raise ValueError(f"All attempts failed. Last error: {error_msg}")
+                
+                continue  # Try next max_size
         
-        # If all sizes failed
-        raise Exception("Failed to process images even with smallest size. Please try with lower resolution images or contact support.") 
+        raise ValueError("Failed to process image with any size configuration") 
