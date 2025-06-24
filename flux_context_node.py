@@ -283,7 +283,7 @@ class FluxContextNode:
                         input_data["input"]["image"] = image_1_b64
                         
                 else:
-                    # Black Forest Labs models use image_url parameter
+                    # Black Forest Labs models use specific parameter names
                     input_data = {
                         "version": version_id,
                         "input": {
@@ -292,16 +292,14 @@ class FluxContextNode:
                         }
                     }
                     
-                    # Add images - single image or array of images
+                    # Black Forest Labs flux-kontext models expect 'image' parameter
+                    # Based on API documentation research
+                    input_data["input"]["image"] = image_1_b64
+                    print("Added image to 'image' parameter for Black Forest Labs model")
+                    
+                    # Add second image if provided - flux-kontext doesn't support multiple images
                     if image_2 is not None:
-                        # Two images - pass as array
-                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                        input_data["input"]["image_url"] = [image_1_b64, image_2_b64]
-                        print("Added both images as array to 'image_url'")
-                    else:
-                        # Single image
-                        input_data["input"]["image_url"] = image_1_b64
-                        print("Added single image to 'image_url'")
+                        print("Warning: Black Forest Labs flux-kontext models don't support multiple images. Using first image only.")
                 
                 print(f"Using model: {model}")
                 print(f"Using version: {version_id}")
