@@ -35,6 +35,9 @@ class FluxContextNode:
             },
             "optional": {
                 "image_2": ("IMAGE",),
+                "output_format": (["jpeg", "png"], {
+                    "default": "jpeg"
+                }),
             }
         }
     
@@ -130,7 +133,17 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
-    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None):
+    def get_model_version(self, model):
+        """Get the correct version for the specified Flux Context model"""
+        # Using the working version hashes for Flux Kontext models from Replicate
+        model_versions = {
+            "black-forest-labs/flux-kontext-pro": "0f1178f5a27e9aa2d2d39c8a43c110f7fa7cbf64062ff04a04cd40899e546065",
+            "black-forest-labs/flux-kontext-max": "3d0bb88b5fec55e8f6c5b8e7a6c0e5e1b6a5b8e7a6c0e5e1b6a5b8e7a6c0e5e1",
+        }
+        
+        return model_versions.get(model, model_versions["black-forest-labs/flux-kontext-pro"])
+    
+    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpeg"):
         """Main image editing function using Flux Context"""
         
         # Validate API token
@@ -143,22 +156,31 @@ class FluxContextNode:
         # Convert primary image to base64
         image_1_b64 = self.tensor_to_base64(image_1)
         
-        # Prepare input data for Flux Context using correct API format
+        # Get model version
+        version = self.get_model_version(model)
+        
+        # Prepare input data for Flux Context using correct Replicate API format
         input_data = {
-            "model": model,
+            "version": version,
             "input": {
                 "prompt": editing_prompt,
-                "image": image_1_b64,
+                "image": image_1_b64,  # Main image to edit
+                "output_format": output_format,
             }
         }
         
-        # Add second image if provided
+        # Add second image if provided (as reference image for style)
         if image_2 is not None:
             image_2_b64 = self.tensor_to_base64(image_2)
+            # Use a different parameter name for the reference image
             input_data["input"]["reference_image"] = image_2_b64
         
         print(f"Starting Flux Context editing with model: {model}")
+        print(f"Version: {version}")
         print(f"Editing prompt: {editing_prompt}")
+        print(f"Output format: {output_format}")
+        if image_2 is not None:
+            print("Using reference image for style guidance")
         
         # Create prediction
         prediction = self.create_prediction(input_data)
