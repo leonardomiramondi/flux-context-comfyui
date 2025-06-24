@@ -243,73 +243,68 @@ class FluxContextNode:
         # Store the API token for this generation
         self.api_token = api_token.strip()
 
-        # Try with high quality settings first
-        max_sizes = [1280, 1024, 768]  # Start with higher quality
+        # Get the model version ID first
+        try:
+            version_id = self.get_model_version(model)
+        except Exception as e:
+            raise ValueError(f"Failed to get model version: {str(e)}")
+
+        # Convert images to base64
+        max_size = 1024  # Use a single, reasonable size
+        image_1_b64 = self.tensor_to_base64(image_1, max_size)
         
-        for max_size in max_sizes:
+        # List of possible parameter combinations to try
+        # Based on different Flux model variations
+        parameter_combinations = []
+        
+        if "flux-kontext-apps" in model:
+            # flux-kontext-apps models - try various parameter combinations
+            if "multi-image" in model:
+                # Multi-image specific parameters
+                parameter_combinations = [
+                    {"input_image_1": image_1_b64, "input_image_2": self.tensor_to_base64(image_2, max_size) if image_2 is not None else image_1_b64, "prompt": editing_prompt},
+                    {"image_1": image_1_b64, "image_2": self.tensor_to_base64(image_2, max_size) if image_2 is not None else image_1_b64, "prompt": editing_prompt},
+                    {"first_image": image_1_b64, "second_image": self.tensor_to_base64(image_2, max_size) if image_2 is not None else image_1_b64, "prompt": editing_prompt},
+                ]
+            else:
+                # Single image flux-kontext-apps
+                parameter_combinations = [
+                    {"image": image_1_b64, "prompt": editing_prompt},
+                    {"input_image": image_1_b64, "prompt": editing_prompt},
+                    {"image_url": image_1_b64, "prompt": editing_prompt},
+                ]
+        else:
+            # Black Forest Labs models - try various parameter combinations
+            parameter_combinations = [
+                {"image": image_1_b64, "prompt": editing_prompt},
+                {"image_url": image_1_b64, "prompt": editing_prompt},
+                {"input_image": image_1_b64, "prompt": editing_prompt},
+                {"source_image": image_1_b64, "prompt": editing_prompt},
+            ]
+        
+        # Try each parameter combination
+        last_error = None
+        for i, params in enumerate(parameter_combinations):
             try:
-                print(f"Attempting with max image size: {max_size}px")
+                print(f"Attempt {i+1}/{len(parameter_combinations)}: Testing parameters {list(params.keys())}")
                 
-                # Get the model version ID
-                version_id = self.get_model_version(model)
+                # Add output format to parameters
+                if output_format:
+                    params["output_format"] = output_format
                 
-                # Convert primary image to base64 with high quality
-                image_1_b64 = self.tensor_to_base64(image_1, max_size)
+                input_data = {
+                    "version": version_id,
+                    "input": params
+                }
                 
-                # Determine which parameter format to use based on model family
-                if "flux-kontext-apps" in model:
-                    # flux-kontext-apps models use different parameter names
-                    input_data = {
-                        "version": version_id,
-                        "input": {
-                            "prompt": editing_prompt,
-                            "output_format": output_format,
-                        }
-                    }
-                    
-                    # For flux-kontext-apps models, try different parameter names
-                    # Based on the model name, use appropriate parameter names
-                    if "multi-image" in model:
-                        # Multi-image models might use input_image_1, input_image_2
-                        input_data["input"]["input_image_1"] = image_1_b64
-                        if image_2 is not None:
-                            image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                            input_data["input"]["input_image_2"] = image_2_b64
-                            print("Added second image as 'input_image_2'")
-                        else:
-                            print("Warning: Multi-image model but only one image provided")
-                    else:
-                        # Single image apps might use 'image' or 'input_image'
-                        input_data["input"]["image"] = image_1_b64
-                        
-                else:
-                    # Black Forest Labs models use specific parameter names
-                    input_data = {
-                        "version": version_id,
-                        "input": {
-                            "prompt": editing_prompt,
-                            "output_format": output_format,
-                        }
-                    }
-                    
-                    # Black Forest Labs flux-kontext models expect 'image_url' parameter
-                    # Based on API documentation research
-                    input_data["input"]["image_url"] = image_1_b64
-                    print("Added image to 'image_url' parameter for Black Forest Labs model")
-                    
-                    # Add second image if provided - flux-kontext doesn't support multiple images
-                    if image_2 is not None:
-                        print("Warning: Black Forest Labs flux-kontext models don't support multiple images. Using first image only.")
-                
-                print(f"Using model: {model}")
-                print(f"Using version: {version_id}")
-                print(f"Input parameters: {list(input_data['input'].keys())}")
+                print(f"Making API request with parameters: {list(params.keys())}")
                 
                 # Make the API prediction request
                 prediction = self.create_prediction(input_data)
                 prediction_id = prediction["id"]
                 
-                print(f"Prediction created with ID: {prediction_id}")
+                print(f"✅ SUCCESS! Prediction created with ID: {prediction_id}")
+                print(f"Working parameters: {list(params.keys())}")
                 
                 # Wait for completion
                 result = self.wait_for_prediction(prediction_id)
@@ -329,17 +324,15 @@ class FluxContextNode:
                 
             except Exception as e:
                 error_msg = str(e)
-                print(f"Attempt with max_size {max_size} failed: {error_msg}")
+                print(f"❌ Attempt {i+1} failed with parameters {list(params.keys())}: {error_msg}")
+                last_error = error_msg
                 
-                # If this is the last attempt, try to provide helpful error info
-                if max_size == max_sizes[-1]:
-                    if "version is required" in error_msg or "Additional property" in error_msg:
-                        print(f"API parameter error. Model: {model}")
-                        print(f"This suggests the parameter names are incorrect for this model.")
-                        print(f"Tried parameters: {list(input_data['input'].keys()) if 'input_data' in locals() else 'N/A'}")
-                        
-                    raise ValueError(f"All attempts failed. Last error: {error_msg}")
-                
-                continue  # Try next max_size
+                # If this specific error suggests parameter issues, continue trying
+                if any(keyword in error_msg.lower() for keyword in ["additional property", "required", "validation", "invalid_fields"]):
+                    continue
+                else:
+                    # For other errors (auth, network, etc.), stop trying
+                    break
         
-        raise ValueError("Failed to process image with any size configuration") 
+        # If we get here, all attempts failed
+        raise ValueError(f"All parameter combinations failed. Model: {model}. Last error: {last_error}") 
