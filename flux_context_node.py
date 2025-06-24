@@ -48,17 +48,7 @@ class FluxContextNode:
             }
         }
     
-    @classmethod
-    def VALIDATE_INPUTS(cls, **kwargs):
-        """Validate inputs before processing"""
-        model = kwargs.get("model", "")
-        image_2 = kwargs.get("image_2", None)
-        
-        # flux-kontext-apps multi-image models work best with two images
-        if "flux-kontext-apps" in model and "multi-image" in model and image_2 is None:
-            return "Multi-image models work best with both 'image_1' and 'image_2' inputs."
-        
-        return True
+
     
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("edited_image",)
