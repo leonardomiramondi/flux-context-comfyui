@@ -24,7 +24,7 @@ class FluxContextNode:
                     "default": "r8_",
                     "placeholder": "Enter your Replicate API token"
                 }),
-                "image_1": ("IMAGE",),
+                "image 1": ("IMAGE",),
                 "editing_prompt": ("STRING", {
                     "multiline": True,
                     "default": "Make this a watercolor painting",
@@ -32,31 +32,22 @@ class FluxContextNode:
                 }),
                 "model": ([
                     "black-forest-labs/flux-kontext-pro",
-                    "black-forest-labs/flux-kontext-max",
-                    "flux-kontext-apps/multi-image-kontext-max",
-                    "flux-kontext-apps/multi-image-kontext-pro"
+                    "black-forest-labs/flux-kontext-max"
                 ], {
-                    "default": "flux-kontext-apps/multi-image-kontext-max"
+                    "default": "black-forest-labs/flux-kontext-pro"
                 }),
                 "output_format": (["jpg", "png"], {
                     "default": "jpg"
                 }),
             },
             "optional": {
-                "image_2": ("IMAGE",),
+                "image 2": ("IMAGE",),
             }
         }
     
     @classmethod
     def VALIDATE_INPUTS(cls, **kwargs):
         """Validate inputs before processing"""
-        model = kwargs.get("model", "")
-        image_2 = kwargs.get("image_2", None)
-
-        if "multi-image" in model and image_2 is None:
-            # This is a test to see if the file is being updated.
-            return f"[TEST] Multi-image model selected without a second image. This is a test message. If you see the old error, the file is not updating."
-        
         return True
     
     RETURN_TYPES = ("IMAGE",)
@@ -199,49 +190,15 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
-    def get_latest_version(self, model_name):
-        """Get the latest version for a model from Replicate API"""
-        try:
-            headers = {
-                "Authorization": f"Token {self.api_token}",
-                "Accept": "application/json"
-            }
-            
-            # Get model info to find latest version
-            model_url = f"{self.base_url}/models/{model_name}"
-            response = requests.get(model_url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                model_info = response.json()
-                latest_version = model_info.get("latest_version", {}).get("id")
-                if latest_version:
-                    print(f"Found latest version for {model_name}: {latest_version}")
-                    return latest_version
-                else:
-                    print(f"No latest version found in response for {model_name}")
-            else:
-                print(f"Failed to get model info for {model_name}: {response.status_code}")
-                
-        except Exception as e:
-            print(f"Error getting latest version for {model_name}: {str(e)}")
-        
-        return None
-    
-    def get_model_version(self, model):
-        """Get the correct version for the specified Flux Context model"""
-        # For Black Forest Labs models, use direct model names
-        if model.startswith("black-forest-labs/"):
-            return None  # Use direct model name
-        
-        # For flux-kontext-apps models, get the latest version dynamically
-        if model.startswith("flux-kontext-apps/"):
-            return self.get_latest_version(model)
-        
-        # Fallback
-        return None
-    
-    def edit_image(self, api_token, image_1, editing_prompt, model, output_format="jpg", image_2=None):
+    def edit_image(self, api_token, **kwargs):
         """Main image editing function using Flux Context"""
+        
+        # Extract parameters from kwargs
+        image_1 = kwargs.get("image 1")
+        image_2 = kwargs.get("image 2")
+        editing_prompt = kwargs.get("editing_prompt")
+        model = kwargs.get("model", "black-forest-labs/flux-kontext-pro")
+        output_format = kwargs.get("output_format", "jpg")
         
         # Validate API token
         if not api_token or not api_token.strip():
@@ -249,14 +206,6 @@ class FluxContextNode:
         
         # Store the API token for this generation
         self.api_token = api_token.strip()
-
-        # Check if a multi-image model is selected without a second image
-        is_multi_image_model = "multi-image" in model
-        if is_multi_image_model and image_2 is None:
-            # Fallback to a single-image model to prevent API errors
-            original_model = model
-            model = "flux-kontext-apps/multi-image-kontext-pro"
-            print(f"Warning: '{original_model}' requires two images. Falling back to '{model}' for single-image editing.")
 
         # Try with high quality settings first
         max_sizes = [1280, 1024, 768]  # Start with higher quality
@@ -268,49 +217,21 @@ class FluxContextNode:
                 # Convert primary image to base64 with high quality
                 image_1_b64 = self.tensor_to_base64(image_1, max_size)
                 
-                # Get model version
-                version = self.get_model_version(model)
-                
-                # Prepare input data based on model type
-                if version is None:
-                    # For Black Forest Labs models (use direct model name)
-                    input_data = {
-                        "model": model,
-                        "input": {
-                            "prompt": editing_prompt,
-                            "image": image_1_b64,
-                            "output_format": output_format,
-                        }
+                # Prepare input data - simplified for only the working models
+                input_data = {
+                    "model": model,
+                    "input": {
+                        "prompt": editing_prompt,
+                        "image": image_1_b64,
+                        "output_format": output_format,
                     }
-                    print(f"Using direct model name: {model}")
-                else:
-                    # For flux-kontext-apps models (use version hash)
-                    input_data = {
-                        "version": version,
-                        "input": {
-                            "prompt": editing_prompt,
-                            "output_format": output_format,
-                        }
-                    }
-                    print(f"Using version: {version}")
-                    
-                    # Handle different flux-kontext-apps model configurations
-                    if is_multi_image_model and image_2 is not None:
-                        # Multi-image mode: use both images for combining
-                        input_data["input"]["input_image_1"] = image_1_b64
-                        image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                        input_data["input"]["input_image_2"] = image_2_b64
-                        print("Multi-image mode: Added both images as 'input_image_1' and 'input_image_2'")
-                    else:
-                        # Single image mode: use only first image for editing
-                        input_data["input"]["image"] = image_1_b64
-                        print("Single image mode: Added image as 'image'")
+                }
                 
-                # Add second image for Black Forest Labs models if provided (reference style)
-                if version is None and image_2 is not None:
+                # Add second image if provided (as reference)
+                if image_2 is not None:
                     image_2_b64 = self.tensor_to_base64(image_2, max_size)
                     input_data["input"]["reference_image"] = image_2_b64
-                    print("Added second image as 'reference_image' for Black Forest Labs model")
+                    print("Added second image as 'reference_image'")
                 
                 print(f"Starting Flux Context editing with model: {model}")
                 print(f"Editing prompt: {editing_prompt}")
