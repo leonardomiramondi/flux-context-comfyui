@@ -190,6 +190,33 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
+    def get_model_version(self, model_name):
+        """Get the latest version ID for a Replicate model"""
+        headers = {
+            "Authorization": f"Token {self.api_token}",
+        }
+        
+        try:
+            response = requests.get(
+                f"{self.base_url}/models/{model_name}",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                model_info = response.json()
+                latest_version = model_info.get("latest_version", {}).get("id")
+                if latest_version:
+                    print(f"Found latest version for {model_name}: {latest_version}")
+                    return latest_version
+                else:
+                    raise Exception(f"No latest version found for {model_name}")
+            else:
+                raise Exception(f"Failed to get model info for {model_name}: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            raise Exception(f"Error getting latest version for {model_name}: {str(e)}")
+
     def edit_image(self, api_token, **kwargs):
         """Main image editing function using Flux Context"""
         
@@ -214,26 +241,34 @@ class FluxContextNode:
             try:
                 print(f"Attempting with max image size: {max_size}px")
                 
+                # Get the model version ID
+                version_id = self.get_model_version(model)
+                
                 # Convert primary image to base64 with high quality
                 image_1_b64 = self.tensor_to_base64(image_1, max_size)
                 
-                # Prepare input data - simplified for only the working models
+                # Prepare input data using version instead of model
                 input_data = {
-                    "model": model,
+                    "version": version_id,
                     "input": {
                         "prompt": editing_prompt,
-                        "image": image_1_b64,
                         "output_format": output_format,
                     }
                 }
                 
-                # Add second image if provided (as reference)
+                # Add images - single image or array of images
                 if image_2 is not None:
+                    # Two images - pass as array
                     image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                    input_data["input"]["reference_image"] = image_2_b64
-                    print("Added second image as 'reference_image'")
+                    input_data["input"]["image_url"] = [image_1_b64, image_2_b64]
+                    print("Added both images as array to 'image_url'")
+                else:
+                    # Single image
+                    input_data["input"]["image_url"] = image_1_b64
+                    print("Added single image as 'image_url'")
                 
                 print(f"Starting Flux Context editing with model: {model}")
+                print(f"Using version: {version_id}")
                 print(f"Editing prompt: {editing_prompt}")
                 print(f"Output format: {output_format}")
                 
