@@ -8,7 +8,7 @@ import numpy as np
 
 class FluxContextNode:
     """
-    ComfyUI node for Flux Context (Kontext) - image editing and transformation using text prompts with context images
+    ComfyUI node for Flux Context (Kontext) - image editing and transformation using text prompts
     """
     
     def __init__(self):
@@ -23,7 +23,7 @@ class FluxContextNode:
                     "default": "r8_",
                     "placeholder": "Enter your Replicate API token"
                 }),
-                "input_image": ("IMAGE",),
+                "image_1": ("IMAGE",),
                 "editing_prompt": ("STRING", {
                     "multiline": True,
                     "default": "Make this a watercolor painting",
@@ -34,26 +34,7 @@ class FluxContextNode:
                 }),
             },
             "optional": {
-                "context_image": ("IMAGE",),
-                "context_strength": ("FLOAT", {
-                    "default": 0.8,
-                    "min": 0.1,
-                    "max": 1.0,
-                    "step": 0.1,
-                    "display": "slider"
-                }),
-                "preserve_identity": ("BOOLEAN", {
-                    "default": True
-                }),
-                "output_format": (["webp", "jpg", "png"], {
-                    "default": "webp"
-                }),
-                "output_quality": ("INT", {
-                    "default": 90,
-                    "min": 1,
-                    "max": 100,
-                    "step": 1
-                }),
+                "image_2": ("IMAGE",),
             }
         }
     
@@ -149,20 +130,7 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
-    def enhance_prompt(self, prompt, preserve_identity, context_image):
-        """Enhance the editing prompt with context-specific instructions"""
-        enhanced_prompt = prompt
-        
-        if preserve_identity and "person" in prompt.lower() or "face" in prompt.lower():
-            enhanced_prompt += " while keeping the same facial features and identity"
-        
-        if context_image is not None:
-            enhanced_prompt += " using the second image as visual reference for style and composition"
-        
-        return enhanced_prompt
-    
-    def edit_image(self, api_token, input_image, editing_prompt, model, context_image=None, 
-                   context_strength=0.8, preserve_identity=True, output_format="webp", output_quality=90):
+    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None):
         """Main image editing function using Flux Context"""
         
         # Validate API token
@@ -172,34 +140,25 @@ class FluxContextNode:
         # Store the API token for this generation
         self.api_token = api_token.strip()
         
-        # Convert input image to base64
-        input_image_b64 = self.tensor_to_base64(input_image)
+        # Convert primary image to base64
+        image_1_b64 = self.tensor_to_base64(image_1)
         
-        # Enhance prompt for better context understanding
-        enhanced_prompt = self.enhance_prompt(editing_prompt, preserve_identity, context_image)
-        
-        # Get model version
-        version = self.get_model_version(model)
-        
-        # Prepare input data for Flux Context
+        # Prepare input data for Flux Context using correct API format
         input_data = {
-            "version": version,
+            "model": model,
             "input": {
-                "prompt": enhanced_prompt,
-                "input_image": input_image_b64,
-                "output_format": output_format,
-                "output_quality": output_quality,
+                "prompt": editing_prompt,
+                "image": image_1_b64,
             }
         }
         
-        # Add context image if provided
-        if context_image is not None:
-            context_image_b64 = self.tensor_to_base64(context_image)
-            input_data["input"]["context_image"] = context_image_b64
-            input_data["input"]["context_strength"] = context_strength
+        # Add second image if provided
+        if image_2 is not None:
+            image_2_b64 = self.tensor_to_base64(image_2)
+            input_data["input"]["reference_image"] = image_2_b64
         
         print(f"Starting Flux Context editing with model: {model}")
-        print(f"Editing prompt: {enhanced_prompt}")
+        print(f"Editing prompt: {editing_prompt}")
         
         # Create prediction
         prediction = self.create_prediction(input_data)
@@ -221,14 +180,4 @@ class FluxContextNode:
         
         print(f"Downloading edited image from: {output_url}")
         
-        return (self.download_image(output_url),)
-    
-    def get_model_version(self, model):
-        """Get the latest version hash for the specified Flux Context model"""
-        # These version hashes may need updates - check Replicate model pages
-        model_versions = {
-            "black-forest-labs/flux-kontext-pro": "latest",
-            "black-forest-labs/flux-kontext-max": "latest",
-        }
-        
-        return model_versions.get(model, "latest") 
+        return (self.download_image(output_url),) 
