@@ -47,6 +47,13 @@ class FluxContextNode:
             }
         }
     
+    @classmethod
+    def VALIDATE_INPUTS(cls, api_token, image_1, editing_prompt, model, output_format, image_2=None):
+        """Validate inputs before processing"""
+        if "multi-image" in model and image_2 is None:
+            return f"The model '{model}' requires both image_1 and image_2. Please connect an image to the image_2 input."
+        return True
+    
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "edit_image"
     CATEGORY = "image/editing"
@@ -269,22 +276,34 @@ class FluxContextNode:
                         "version": version,
                         "input": {
                             "prompt": editing_prompt,
-                            "image": image_1_b64,
                             "output_format": output_format,
                         }
                     }
                     print(f"Using version: {version}")
-                
-                # Add second image if provided
-                if image_2 is not None:
-                    image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                    
+                    # flux-kontext-apps models use specific parameter names
                     if "multi-image" in model:
-                        # For multi-image models, use specific parameter name
-                        input_data["input"]["image2"] = image_2_b64
-                        print("Added second image as 'image2' for multi-image model")
+                        # Multi-image models require both input_image_1 and input_image_2
+                        input_data["input"]["input_image_1"] = image_1_b64
+                        print("Added first image as 'input_image_1'")
+                        
+                        # For multi-image models, image_2 is required
+                        if image_2 is not None:
+                            image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                            input_data["input"]["input_image_2"] = image_2_b64
+                            print("Added second image as 'input_image_2'")
+                        else:
+                            raise ValueError("Multi-image models require both image_1 and image_2. Please connect an image to the image_2 input.")
                     else:
-                        input_data["input"]["reference_image"] = image_2_b64
-                        print("Added second image as 'reference_image'")
+                        # Other flux-kontext-apps models
+                        input_data["input"]["image"] = image_1_b64
+                        print("Added image as 'image'")
+                
+                # Add second image for Black Forest Labs models if provided
+                if version is None and image_2 is not None:
+                    image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                    input_data["input"]["reference_image"] = image_2_b64
+                    print("Added second image as 'reference_image' for Black Forest Labs model")
                 
                 print(f"Starting Flux Context editing with model: {model}")
                 print(f"Editing prompt: {editing_prompt}")
