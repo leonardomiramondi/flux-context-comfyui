@@ -25,7 +25,7 @@ class FluxContextNode:
                     "default": "r8_",
                     "placeholder": "Enter your Replicate API token"
                 }),
-                "image 1": ("IMAGE",),
+                "image_1": ("IMAGE",),
                 "editing_prompt": ("STRING", {
                     "multiline": True,
                     "default": "Put the person into a white t-shirt",
@@ -41,7 +41,7 @@ class FluxContextNode:
                 }),
             },
             "optional": {
-                "image 2": ("IMAGE",),
+                "image_2": ("IMAGE",),
                 "aspect_ratio": (["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"], {
                     "default": "1:1"
                 }),
@@ -52,17 +52,19 @@ class FluxContextNode:
     def VALIDATE_INPUTS(cls, **kwargs):
         """Validate inputs before processing"""
         model = kwargs.get("model", "")
-        image_2 = kwargs.get("image 2", None)
+        image_2 = kwargs.get("image_2", None)
         
         # flux-kontext-apps multi-image models work best with two images
         if "flux-kontext-apps" in model and "multi-image" in model and image_2 is None:
-            return "Multi-image models work best with both 'image 1' and 'image 2' inputs."
+            return "Multi-image models work best with both 'image_1' and 'image_2' inputs."
         
         return True
     
     RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("edited_image",)
     FUNCTION = "edit_image"
     CATEGORY = "image/editing"
+    DESCRIPTION = "Edit images using Flux Context models via Replicate API"
     
     def pil_to_tensor(self, image):
         """Convert PIL image to tensor format expected by ComfyUI"""
@@ -109,8 +111,8 @@ class FluxContextNode:
         """Main image editing function using Flux Context"""
         
         # Extract parameters
-        image_1 = kwargs.get("image 1")
-        image_2 = kwargs.get("image 2") 
+        image_1 = kwargs.get("image_1")
+        image_2 = kwargs.get("image_2") 
         editing_prompt = kwargs.get("editing_prompt", "Put the person into a white t-shirt")
         model = kwargs.get("model", "flux-kontext-apps/multi-image-kontext-max")
         aspect_ratio = kwargs.get("aspect_ratio", "1:1")
@@ -261,7 +263,9 @@ class FluxContextNode:
             else:
                 raise ValueError(f"Flux Context editing failed: {error_msg}")
 
-# Register the node
+# ComfyUI Node Registration
+WEB_DIRECTORY = "./web"
+
 NODE_CLASS_MAPPINGS = {
     "FluxContextNode": FluxContextNode
 }
