@@ -17,12 +17,12 @@ A custom ComfyUI node that enables image generation using Flux models through th
 
 **For macOS/Linux:**
 ```bash
-cd ComfyUI/custom_nodes/ && git clone https://github.com/YOUR_USERNAME/flux-replicate-comfyui.git && cd flux-replicate-comfyui && ./install.sh
+cd ComfyUI/custom_nodes/ && git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git && cd flux-replicate-comfyui && ./install.sh
 ```
 
 **For Windows:**
 ```cmd
-cd ComfyUI\custom_nodes && git clone https://github.com/YOUR_USERNAME/flux-replicate-comfyui.git && cd flux-replicate-comfyui && pip install -r requirements.txt
+cd ComfyUI\custom_nodes && git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git && cd flux-replicate-comfyui && pip install -r requirements.txt
 ```
 
 ### Method 2: Step-by-Step Git Clone
@@ -34,7 +34,7 @@ cd ComfyUI\custom_nodes && git clone https://github.com/YOUR_USERNAME/flux-repli
 
 2. **Clone this repository**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/flux-replicate-comfyui.git
+   git clone https://github.com/leonardomiramondi/flux-replicate-comfyui.git
    ```
 
 3. **Install dependencies**:
@@ -45,9 +45,7 @@ cd ComfyUI\custom_nodes && git clone https://github.com/YOUR_USERNAME/flux-repli
    ./install.sh
    ```
 
-4. **Set up your Replicate API token** (see API Setup section below)
-
-5. **Restart ComfyUI**
+4. **Restart ComfyUI**
 
 ### Method 3: Manual Download
 
@@ -68,29 +66,7 @@ cd ComfyUI\custom_nodes && git clone https://github.com/YOUR_USERNAME/flux-repli
    pip install -r requirements.txt
    ```
 
-4. **Set up your Replicate API token** (see API Setup section below)
-
-5. **Restart ComfyUI**
-
-## API Setup
-
-### Option 1: Environment Variable (Recommended)
-```bash
-export REPLICATE_API_TOKEN=your_replicate_token_here
-```
-
-### Option 2: Add to your shell profile
-Add to `~/.bashrc`, `~/.zshrc`, or equivalent:
-```bash
-echo 'export REPLICATE_API_TOKEN=your_replicate_token_here' >> ~/.zshrc
-source ~/.zshrc
-```
-
-### Option 3: .env file
-Create a `.env` file in your ComfyUI root directory:
-```
-REPLICATE_API_TOKEN=your_replicate_token_here
-```
+4. **Restart ComfyUI**
 
 ## Verification
 
@@ -102,8 +78,9 @@ After installation, the node should appear in ComfyUI under:
 ### Basic Text-to-Image Generation
 
 1. Add the "Flux Replicate Context" node to your workflow
-2. Connect a text input to the `prompt` parameter
-3. Configure your desired settings:
+2. **Enter your Replicate API token** in the `api_token` field (get one from [replicate.com](https://replicate.com/account/api-tokens))
+3. Connect a text input to the `prompt` parameter
+4. Configure your desired settings:
    - **Model**: Choose between Flux Schnell (fastest), Flux Dev (balanced), or Flux Pro (highest quality)
    - **Dimensions**: Set width and height (multiples of 64, max 2048x2048)
    - **Steps**: Number of inference steps (4-50, lower is faster)
@@ -126,6 +103,7 @@ After installation, the node should appear in ComfyUI under:
 ## Node Parameters
 
 ### Required Inputs
+- `api_token` (STRING): Your Replicate API token (get from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens))
 - `prompt` (STRING): Text description of the image to generate
 - `model` (CHOICE): Flux model variant to use
 - `width` (INT): Image width in pixels (256-2048, step 64)
@@ -157,23 +135,27 @@ After installation, the node should appear in ComfyUI under:
 
 ### Common Issues
 
-1. **"Failed to create prediction" error**:
-   - Check your API token is correct
+1. **"API token is required" error**:
+   - Enter your Replicate API token in the `api_token` field
+   - Get your token from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
+
+2. **"Failed to create prediction" error**:
+   - Check your API token is correct and valid
    - Ensure you have sufficient Replicate credits
    - Verify your internet connection
 
-2. **"Prediction timed out" error**:
+3. **"Prediction timed out" error**:
    - Try reducing image dimensions
    - Lower the number of inference steps
    - Check Replicate's service status
 
-3. **Poor image quality**:
+4. **Poor image quality**:
    - Increase inference steps (try 10-20 for Dev/Pro)
    - Use more descriptive prompts
    - Try Flux Dev or Pro models
    - Adjust guidance scale (7.5 is often good)
 
-4. **Node not appearing in ComfyUI**:
+5. **Node not appearing in ComfyUI**:
    - Restart ComfyUI completely
    - Check the console for error messages
    - Ensure all dependencies are installed

@@ -1,4 +1,3 @@
-import os
 import requests
 import time
 import base64
@@ -13,15 +12,16 @@ class FluxReplicateNode:
     """
     
     def __init__(self):
-        self.api_token = os.getenv('REPLICATE_API_TOKEN')
-        if not self.api_token:
-            raise ValueError("REPLICATE_API_TOKEN environment variable is required. Please set it with your Replicate API token.")
         self.base_url = "https://api.replicate.com/v1"
         
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "api_token": ("STRING", {
+                    "multiline": False,
+                    "default": "r8_"
+                }),
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "A beautiful landscape with mountains and a lake"
@@ -169,10 +169,17 @@ class FluxReplicateNode:
         
         return self.pil_to_tensor(image)
     
-    def generate(self, prompt, model, width, height, num_inference_steps, guidance_scale, seed, 
+    def generate(self, api_token, prompt, model, width, height, num_inference_steps, guidance_scale, seed, 
                 image_input_1=None, image_input_2=None, negative_prompt="", output_format="webp", 
                 output_quality=80, image_mode="img2img"):
         """Main generation function"""
+        
+        # Validate API token
+        if not api_token or not api_token.strip():
+            raise ValueError("API token is required. Please enter your Replicate API token.")
+        
+        # Store the API token for this generation
+        self.api_token = api_token.strip()
         
         # Prepare input data
         input_data = {
