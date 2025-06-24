@@ -292,10 +292,10 @@ class FluxContextNode:
                         }
                     }
                     
-                    # Black Forest Labs flux-kontext models expect 'image' parameter
+                    # Black Forest Labs flux-kontext models expect 'image_url' parameter
                     # Based on API documentation research
-                    input_data["input"]["image"] = image_1_b64
-                    print("Added image to 'image' parameter for Black Forest Labs model")
+                    input_data["input"]["image_url"] = image_1_b64
+                    print("Added image to 'image_url' parameter for Black Forest Labs model")
                     
                     # Add second image if provided - flux-kontext doesn't support multiple images
                     if image_2 is not None:
