@@ -51,8 +51,8 @@ class FluxContextNode:
         image_array = np.array(image).astype(np.float32) / 255.0
         return torch.from_numpy(image_array)[None,]
     
-    def tensor_to_base64(self, tensor, max_size=1024):
-        """Convert ComfyUI tensor to base64 string for API upload with size optimization"""
+    def tensor_to_base64(self, tensor, max_size=1280):
+        """Convert ComfyUI tensor to base64 string for API upload with high quality preservation"""
         # Handle tensor dimensions
         if len(tensor.shape) == 4:
             tensor = tensor.squeeze(0)
@@ -61,25 +61,38 @@ class FluxContextNode:
         i = 255. * tensor.cpu().numpy()
         img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
         
-        # Resize if image is too large to prevent JSON issues
+        original_size = (img.width, img.height)
+        print(f"Original image size: {original_size[0]}x{original_size[1]}")
+        
+        # Only resize if the image is significantly larger than max_size
         if img.width > max_size or img.height > max_size:
             # Calculate new size maintaining aspect ratio
             ratio = min(max_size / img.width, max_size / img.height)
             new_width = int(img.width * ratio)
             new_height = int(img.height * ratio)
+            
+            # Use highest quality resampling
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"Resized image from original size to {new_width}x{new_height} to prevent JSON parsing issues")
+            print(f"Resized image to {new_width}x{new_height} for API compatibility")
         
-        # Convert to base64 with compression
+        # Save as PNG for maximum quality first, then check size
         buffered = BytesIO()
-        # Use JPEG with quality for smaller file size, PNG for lossless
-        if max_size <= 512:  # For very large images, use JPEG to reduce size
-            img.save(buffered, format="JPEG", quality=85, optimize=True)
+        img.save(buffered, format="PNG", optimize=True, compress_level=1)  # Low compression for quality
+        png_size = len(buffered.getvalue())
+        
+        # Estimate base64 size (roughly 4/3 of original)
+        estimated_b64_size_mb = png_size * 4/3 / (1024 * 1024)
+        
+        # If PNG is too large (>20MB), use high-quality JPEG
+        if estimated_b64_size_mb > 20:
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG", quality=98, optimize=True, progressive=True)
             img_str = base64.b64encode(buffered.getvalue()).decode()
+            print(f"Using JPEG at 98% quality, estimated size: {estimated_b64_size_mb:.1f}MB")
             return f"data:image/jpeg;base64,{img_str}"
         else:
-            img.save(buffered, format="PNG", optimize=True)
             img_str = base64.b64encode(buffered.getvalue()).decode()
+            print(f"Using PNG for maximum quality, estimated size: {estimated_b64_size_mb:.1f}MB")
             return f"data:image/png;base64,{img_str}"
     
     def create_prediction(self, input_data):
@@ -171,13 +184,13 @@ class FluxContextNode:
     
     def get_model_version(self, model):
         """Get the correct version for the specified Flux Context model"""
-        # Using the working version hashes for Flux Kontext models from Replicate
-        model_versions = {
-            "black-forest-labs/flux-kontext-pro": "0f1178f5a27e9aa2d2d39c8a43c110f7fa7cbf64062ff04a04cd40899e546065",
-            "black-forest-labs/flux-kontext-max": "3d0bb88b5fec55e8f6c5b8e7a6c0e5e1b6a5b8e7a6c0e5e1b6a5b8e7a6c0e5e1",
-        }
-        
-        return model_versions.get(model, model_versions["black-forest-labs/flux-kontext-pro"])
+        # Using actual working model names for Flux Kontext models from Replicate
+        if model == "black-forest-labs/flux-kontext-pro":
+            return "black-forest-labs/flux-kontext-pro"
+        elif model == "black-forest-labs/flux-kontext-max":
+            return "black-forest-labs/flux-kontext-max"
+        else:
+            return "black-forest-labs/flux-kontext-pro"  # default fallback
     
     def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpg"):
         """Main image editing function using Flux Context"""
@@ -189,22 +202,22 @@ class FluxContextNode:
         # Store the API token for this generation
         self.api_token = api_token.strip()
         
-        # Start with normal size, retry with smaller if needed
-        max_sizes = [1024, 768, 512]  # Try progressively smaller sizes
+        # Try with high quality settings first
+        max_sizes = [1280, 1024, 768]  # Start with higher quality
         
         for max_size in max_sizes:
             try:
                 print(f"Attempting with max image size: {max_size}px")
                 
-                # Convert primary image to base64
+                # Convert primary image to base64 with high quality
                 image_1_b64 = self.tensor_to_base64(image_1, max_size)
                 
-                # Get model version
-                version = self.get_model_version(model)
+                # Get model (use direct model name)
+                model_name = model
                 
-                # Prepare input data for Flux Context using correct Replicate API format
+                # Prepare input data using correct Replicate API format for Flux Kontext
                 input_data = {
-                    "version": version,
+                    "model": model_name,
                     "input": {
                         "prompt": editing_prompt,
                         "image": image_1_b64,  # Main image to edit
@@ -215,11 +228,9 @@ class FluxContextNode:
                 # Add second image if provided (as reference image for style)
                 if image_2 is not None:
                     image_2_b64 = self.tensor_to_base64(image_2, max_size)
-                    # Use a different parameter name for the reference image
                     input_data["input"]["reference_image"] = image_2_b64
                 
-                print(f"Starting Flux Context editing with model: {model}")
-                print(f"Version: {version}")
+                print(f"Starting Flux Context editing with model: {model_name}")
                 print(f"Editing prompt: {editing_prompt}")
                 print(f"Output format: {output_format}")
                 if image_2 is not None:
@@ -248,7 +259,8 @@ class FluxContextNode:
                 return (self.download_image(output_url),)
                 
             except Exception as e:
-                if "Payload too large" in str(e) and max_size > 512:
+                error_msg = str(e).lower()
+                if ("payload too large" in error_msg or "json parsing" in error_msg or "request entity too large" in error_msg) and max_size > 768:
                     print(f"Retrying with smaller image size due to: {str(e)}")
                     continue  # Try next smaller size
                 else:
@@ -256,4 +268,4 @@ class FluxContextNode:
                     raise e
         
         # If all sizes failed
-        raise Exception("Failed to process images even with smallest size. Please try with lower resolution images.") 
+        raise Exception("Failed to process images even with smallest size. Please try with lower resolution images or contact support.") 
