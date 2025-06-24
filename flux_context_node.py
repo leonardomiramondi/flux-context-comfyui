@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image
 import torch
 import numpy as np
+import json
 
 class FluxContextNode:
     """
@@ -35,8 +36,8 @@ class FluxContextNode:
             },
             "optional": {
                 "image_2": ("IMAGE",),
-                "output_format": (["jpeg", "png"], {
-                    "default": "jpeg"
+                "output_format": (["jpg", "png"], {
+                    "default": "jpg"
                 }),
             }
         }
@@ -50,8 +51,8 @@ class FluxContextNode:
         image_array = np.array(image).astype(np.float32) / 255.0
         return torch.from_numpy(image_array)[None,]
     
-    def tensor_to_base64(self, tensor):
-        """Convert ComfyUI tensor to base64 string for API upload"""
+    def tensor_to_base64(self, tensor, max_size=1024):
+        """Convert ComfyUI tensor to base64 string for API upload with size optimization"""
         # Handle tensor dimensions
         if len(tensor.shape) == 4:
             tensor = tensor.squeeze(0)
@@ -60,29 +61,64 @@ class FluxContextNode:
         i = 255. * tensor.cpu().numpy()
         img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
         
-        # Convert to base64
+        # Resize if image is too large to prevent JSON issues
+        if img.width > max_size or img.height > max_size:
+            # Calculate new size maintaining aspect ratio
+            ratio = min(max_size / img.width, max_size / img.height)
+            new_width = int(img.width * ratio)
+            new_height = int(img.height * ratio)
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            print(f"Resized image from original size to {new_width}x{new_height} to prevent JSON parsing issues")
+        
+        # Convert to base64 with compression
         buffered = BytesIO()
-        img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        return f"data:image/png;base64,{img_str}"
+        # Use JPEG with quality for smaller file size, PNG for lossless
+        if max_size <= 512:  # For very large images, use JPEG to reduce size
+            img.save(buffered, format="JPEG", quality=85, optimize=True)
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            return f"data:image/jpeg;base64,{img_str}"
+        else:
+            img.save(buffered, format="PNG", optimize=True)
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            return f"data:image/png;base64,{img_str}"
     
     def create_prediction(self, input_data):
-        """Create a prediction using Replicate API"""
+        """Create a prediction using Replicate API with better error handling"""
         headers = {
             "Authorization": f"Token {self.api_token}",
             "Content-Type": "application/json"
         }
         
-        response = requests.post(
-            f"{self.base_url}/predictions",
-            headers=headers,
-            json=input_data
-        )
-        
-        if response.status_code != 201:
-            raise Exception(f"Failed to create prediction: {response.text}")
-        
-        return response.json()
+        try:
+            # Check JSON size before sending
+            json_str = json.dumps(input_data)
+            json_size_mb = len(json_str.encode('utf-8')) / (1024 * 1024)
+            print(f"Request payload size: {json_size_mb:.2f} MB")
+            
+            if json_size_mb > 50:  # If larger than 50MB, try with smaller images
+                print("Payload too large, retrying with smaller images...")
+                raise Exception("Payload too large - will retry with compressed images")
+            
+            response = requests.post(
+                f"{self.base_url}/predictions",
+                headers=headers,
+                json=input_data,
+                timeout=30  # Add timeout
+            )
+            
+            if response.status_code != 201:
+                raise Exception(f"Failed to create prediction: {response.text}")
+            
+            return response.json()
+            
+        except json.JSONDecodeError as e:
+            raise Exception(f"JSON parsing error: {str(e)}. Try with smaller images.")
+        except requests.exceptions.Timeout:
+            raise Exception("Request timeout. Try with smaller images or check your connection.")
+        except Exception as e:
+            if "Payload too large" in str(e):
+                raise e  # Re-raise for retry logic
+            raise Exception(f"API request failed: {str(e)}")
     
     def get_prediction(self, prediction_id):
         """Get prediction status and result"""
@@ -143,7 +179,7 @@ class FluxContextNode:
         
         return model_versions.get(model, model_versions["black-forest-labs/flux-kontext-pro"])
     
-    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpeg"):
+    def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpg"):
         """Main image editing function using Flux Context"""
         
         # Validate API token
@@ -153,53 +189,71 @@ class FluxContextNode:
         # Store the API token for this generation
         self.api_token = api_token.strip()
         
-        # Convert primary image to base64
-        image_1_b64 = self.tensor_to_base64(image_1)
+        # Start with normal size, retry with smaller if needed
+        max_sizes = [1024, 768, 512]  # Try progressively smaller sizes
         
-        # Get model version
-        version = self.get_model_version(model)
+        for max_size in max_sizes:
+            try:
+                print(f"Attempting with max image size: {max_size}px")
+                
+                # Convert primary image to base64
+                image_1_b64 = self.tensor_to_base64(image_1, max_size)
+                
+                # Get model version
+                version = self.get_model_version(model)
+                
+                # Prepare input data for Flux Context using correct Replicate API format
+                input_data = {
+                    "version": version,
+                    "input": {
+                        "prompt": editing_prompt,
+                        "image": image_1_b64,  # Main image to edit
+                        "output_format": output_format,
+                    }
+                }
+                
+                # Add second image if provided (as reference image for style)
+                if image_2 is not None:
+                    image_2_b64 = self.tensor_to_base64(image_2, max_size)
+                    # Use a different parameter name for the reference image
+                    input_data["input"]["reference_image"] = image_2_b64
+                
+                print(f"Starting Flux Context editing with model: {model}")
+                print(f"Version: {version}")
+                print(f"Editing prompt: {editing_prompt}")
+                print(f"Output format: {output_format}")
+                if image_2 is not None:
+                    print("Using reference image for style guidance")
+                
+                # Create prediction
+                prediction = self.create_prediction(input_data)
+                prediction_id = prediction["id"]
+                
+                print(f"Prediction created with ID: {prediction_id}")
+                
+                # Wait for completion
+                result = self.wait_for_prediction(prediction_id)
+                
+                # Get output URL
+                output_url = result.get("output")
+                if not output_url:
+                    raise Exception("No output generated")
+                
+                # Handle both single URL and list of URLs
+                if isinstance(output_url, list):
+                    output_url = output_url[0]
+                
+                print(f"Downloading edited image from: {output_url}")
+                
+                return (self.download_image(output_url),)
+                
+            except Exception as e:
+                if "Payload too large" in str(e) and max_size > 512:
+                    print(f"Retrying with smaller image size due to: {str(e)}")
+                    continue  # Try next smaller size
+                else:
+                    # If it's not a size issue or we're already at minimum size, raise the error
+                    raise e
         
-        # Prepare input data for Flux Context using correct Replicate API format
-        input_data = {
-            "version": version,
-            "input": {
-                "prompt": editing_prompt,
-                "image": image_1_b64,  # Main image to edit
-                "output_format": output_format,
-            }
-        }
-        
-        # Add second image if provided (as reference image for style)
-        if image_2 is not None:
-            image_2_b64 = self.tensor_to_base64(image_2)
-            # Use a different parameter name for the reference image
-            input_data["input"]["reference_image"] = image_2_b64
-        
-        print(f"Starting Flux Context editing with model: {model}")
-        print(f"Version: {version}")
-        print(f"Editing prompt: {editing_prompt}")
-        print(f"Output format: {output_format}")
-        if image_2 is not None:
-            print("Using reference image for style guidance")
-        
-        # Create prediction
-        prediction = self.create_prediction(input_data)
-        prediction_id = prediction["id"]
-        
-        print(f"Prediction created with ID: {prediction_id}")
-        
-        # Wait for completion
-        result = self.wait_for_prediction(prediction_id)
-        
-        # Get output URL
-        output_url = result.get("output")
-        if not output_url:
-            raise Exception("No output generated")
-        
-        # Handle both single URL and list of URLs
-        if isinstance(output_url, list):
-            output_url = output_url[0]
-        
-        print(f"Downloading edited image from: {output_url}")
-        
-        return (self.download_image(output_url),) 
+        # If all sizes failed
+        raise Exception("Failed to process images even with smallest size. Please try with lower resolution images.") 
