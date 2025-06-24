@@ -187,20 +187,46 @@ class FluxContextNode:
         
         return self.pil_to_tensor(image)
     
+    def get_latest_version(self, model_name):
+        """Get the latest version for a model from Replicate API"""
+        try:
+            headers = {
+                "Authorization": f"Token {self.api_token}",
+                "Accept": "application/json"
+            }
+            
+            # Get model info to find latest version
+            model_url = f"{self.base_url}/models/{model_name}"
+            response = requests.get(model_url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                model_info = response.json()
+                latest_version = model_info.get("latest_version", {}).get("id")
+                if latest_version:
+                    print(f"Found latest version for {model_name}: {latest_version}")
+                    return latest_version
+                else:
+                    print(f"No latest version found in response for {model_name}")
+            else:
+                print(f"Failed to get model info for {model_name}: {response.status_code}")
+                
+        except Exception as e:
+            print(f"Error getting latest version for {model_name}: {str(e)}")
+        
+        return None
+    
     def get_model_version(self, model):
         """Get the correct version for the specified Flux Context model"""
-        # Version hashes for different model types
-        model_versions = {
-            # Original Black Forest Labs models (use direct model names)
-            "black-forest-labs/flux-kontext-pro": None,  # Use direct model name
-            "black-forest-labs/flux-kontext-max": None,  # Use direct model name
-            
-            # Flux Kontext Apps models (require version hashes)
-            "flux-kontext-apps/multi-image-kontext-max": "7ece0bbacaa02ed77e1c59aef7efc5b4b4adbbfb5cf7e82a69d3b4da37c0b5f1",
-            "flux-kontext-apps/multi-image-kontext-pro": "63a84b00b7d75c00c7ba61dbb878b33c30a6fbe81ae2f39e6b37c60e11b57ad6"
-        }
+        # For Black Forest Labs models, use direct model names
+        if model.startswith("black-forest-labs/"):
+            return None  # Use direct model name
         
-        return model_versions.get(model, model_versions["flux-kontext-apps/multi-image-kontext-max"])
+        # For flux-kontext-apps models, get the latest version dynamically
+        if model.startswith("flux-kontext-apps/"):
+            return self.get_latest_version(model)
+        
+        # Fallback
+        return None
     
     def edit_image(self, api_token, image_1, editing_prompt, model, image_2=None, output_format="jpg"):
         """Main image editing function using Flux Context"""
@@ -236,6 +262,7 @@ class FluxContextNode:
                             "output_format": output_format,
                         }
                     }
+                    print(f"Using direct model name: {model}")
                 else:
                     # For flux-kontext-apps models (use version hash)
                     input_data = {
@@ -246,6 +273,7 @@ class FluxContextNode:
                             "output_format": output_format,
                         }
                     }
+                    print(f"Using version: {version}")
                 
                 # Add second image if provided
                 if image_2 is not None:
@@ -253,16 +281,14 @@ class FluxContextNode:
                     if "multi-image" in model:
                         # For multi-image models, use specific parameter name
                         input_data["input"]["image2"] = image_2_b64
+                        print("Added second image as 'image2' for multi-image model")
                     else:
                         input_data["input"]["reference_image"] = image_2_b64
+                        print("Added second image as 'reference_image'")
                 
                 print(f"Starting Flux Context editing with model: {model}")
-                if version:
-                    print(f"Version: {version}")
                 print(f"Editing prompt: {editing_prompt}")
                 print(f"Output format: {output_format}")
-                if image_2 is not None:
-                    print("Using second image for combining/reference")
                 
                 # Create prediction
                 prediction = self.create_prediction(input_data)
