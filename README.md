@@ -12,16 +12,6 @@ Flux Kontext is Black Forest Labs' state-of-the-art **image editing** model that
 - **Background Swapping**: Change environments while preserving subjects
 - **Character Consistency**: Maintain identity across multiple edits
 
-## Features
-
-- ✅ **Text-based image editing** using natural language prompts
-- ✅ **Two image inputs** ("image 1" required, "image 2" optional for reference)
-- ✅ **Professional models**: Flux Kontext Pro and Max
-- ✅ **API token input** built into the node interface
-- ✅ **Multiple output formats** (JPG/PNG)
-- ✅ **Smart image compression** for API compatibility
-- ✅ **Error handling** with automatic retry logic
-
 ## Available Models
 
 - **black-forest-labs/flux-kontext-pro**: State-of-the-art performance with high-quality outputs
