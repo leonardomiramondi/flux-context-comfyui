@@ -12,11 +12,6 @@ Flux Kontext is Black Forest Labs' state-of-the-art **image editing** model that
 - **Background Swapping**: Change environments while preserving subjects
 - **Character Consistency**: Maintain identity across multiple edits
 
-## Available Models
-
-- **black-forest-labs/flux-kontext-pro**: State-of-the-art performance with high-quality outputs
-- **black-forest-labs/flux-kontext-max**: Premium model with maximum performance and improved typography
-
 ## Installation
 
 ### Method 1: ComfyUI Manager (Recommended)
