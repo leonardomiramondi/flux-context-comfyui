@@ -12,14 +12,7 @@ Flux Kontext is Black Forest Labs' state-of-the-art **image editing** model that
 - **Background Swapping**: Change environments while preserving subjects
 - **Character Consistency**: Maintain identity across multiple edits
 
-## Installation
-
-### Method 1: ComfyUI Manager (Recommended)
-1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager)
-2. Search for "Flux Kontext" in the manager
-3. Install and restart ComfyUI
-
-### Method 2: Manual Installation
+### Manual Installation
 
 1. **Find your ComfyUI installation directory**:
    ```bash
