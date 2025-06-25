@@ -7,9 +7,9 @@ import torch
 import numpy as np
 import json
 
-class FluxContextNode:
+class FluxKontextNode:
     """
-    ComfyUI node for Flux Context (Kontext) - image editing and transformation using text prompts
+    ComfyUI node for Flux Kontext - image editing and transformation using text prompts
     Built using official Replicate API documentation
     """
     
@@ -54,7 +54,7 @@ class FluxContextNode:
     RETURN_NAMES = ("edited_image",)
     FUNCTION = "edit_image"
     CATEGORY = "image/editing"
-    DESCRIPTION = "Edit images using Flux Context models via Replicate API"
+    DESCRIPTION = "Edit images using Flux Kontext models via Replicate API"
     
     def pil_to_tensor(self, image):
         """Convert PIL image to tensor format expected by ComfyUI"""
@@ -98,7 +98,7 @@ class FluxContextNode:
             raise Exception(f"Failed to process image: {str(e)}")
     
     def edit_image(self, api_token, **kwargs):
-        """Main image editing function using Flux Context"""
+        """Main image editing function using Flux Kontext"""
         
         # Extract parameters
         image_1 = kwargs.get("image_1")
@@ -111,7 +111,7 @@ class FluxContextNode:
         if not api_token or not api_token.strip() or api_token.strip() == "r8_":
             raise ValueError("Please enter your actual Replicate API token from replicate.com/account/api-tokens")
         
-        print(f"🚀 Starting Flux Context editing with model: {model}")
+        print(f"🚀 Starting Flux Kontext editing with model: {model}")
         print(f"📝 Prompt: {editing_prompt}")
         
         try:
@@ -223,7 +223,7 @@ class FluxContextNode:
                     if result_image.mode != 'RGB':
                         result_image = result_image.convert('RGB')
                     
-                    print("🎉 Success! Flux Context editing completed.")
+                    print("🎉 Success! Flux Kontext editing completed.")
                     return (self.pil_to_tensor(result_image),)
                 
                 elif status == "failed":
@@ -251,15 +251,15 @@ class FluxContextNode:
             elif "422" in error_msg or "validation" in error_msg.lower():
                 raise ValueError(f"Input validation failed. Check your inputs and try again. Error: {error_msg}")
             else:
-                raise ValueError(f"Flux Context editing failed: {error_msg}")
+                raise ValueError(f"Flux Kontext editing failed: {error_msg}")
 
 # ComfyUI Node Registration
 WEB_DIRECTORY = "./web"
 
 NODE_CLASS_MAPPINGS = {
-    "FluxContextNode": FluxContextNode
+    "FluxKontextNode": FluxKontextNode
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FluxContextNode": "Flux Context"
+    "FluxKontextNode": "Flux Kontext"
 } 

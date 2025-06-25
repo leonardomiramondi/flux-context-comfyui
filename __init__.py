@@ -1,11 +1,11 @@
-from .flux_context_node import FluxContextNode
+from .flux_context_node import FluxKontextNode
 
 NODE_CLASS_MAPPINGS = {
-    "FluxContextNode": FluxContextNode
+    "FluxKontextNode": FluxKontextNode
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FluxContextNode": "Flux Context"
+    "FluxKontextNode": "Flux Kontext"
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS'] 

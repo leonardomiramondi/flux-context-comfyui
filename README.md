@@ -1,10 +1,10 @@
-# Flux Context ComfyUI Node
+# Flux Kontext ComfyUI Node
 
-A ComfyUI custom node for **Flux Context (Kontext)** - advanced image editing and transformation using text prompts via the Replicate API.
+A ComfyUI custom node for **Flux Kontext** - advanced image editing and transformation using text prompts via the Replicate API.
 
-## What is Flux Context?
+## What is Flux Kontext?
 
-Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** model that allows you to transform existing images using natural language descriptions. Unlike image generation models, Flux Context specializes in:
+Flux Kontext is Black Forest Labs' state-of-the-art **image editing** model that allows you to transform existing images using natural language descriptions. Unlike image generation models, Flux Kontext specializes in:
 
 - **Style Transfer**: Convert photos to different art styles (watercolor, oil painting, sketches)
 - **Object/Clothing Changes**: Modify hairstyles, add accessories, change colors  
@@ -31,7 +31,7 @@ Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** 
 
 ### Method 1: ComfyUI Manager (Recommended)
 1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager)
-2. Search for "Flux Context" in the manager
+2. Search for "Flux Kontext" in the manager
 3. Install and restart ComfyUI
 
 ### Method 2: Manual Installation
@@ -51,12 +51,12 @@ Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** 
 
 3. **Clone this repository**:
    ```bash
-   git clone https://github.com/leonardomiramondi/flux-context-comfyui.git
+   git clone https://github.com/leonardomiramondi/flux-kontext-comfyui.git
    ```
 
 4. **Install dependencies**:
    ```bash
-   cd flux-context-comfyui
+   cd flux-kontext-comfyui
    pip install -r requirements.txt
    ```
 
@@ -70,7 +70,7 @@ Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** 
    - Copy the token (starts with `r8_`)
 
 2. **Add the node to your workflow**:
-   - In ComfyUI, add the **Flux Context Node** (found under `image/editing`)
+   - In ComfyUI, add the **Flux Kontext Node** (found under `image/editing`)
    - Paste your API token in the "api_token" field
 
 ## Usage
@@ -138,7 +138,7 @@ Flux Context (Kontext) is Black Forest Labs' state-of-the-art **image editing** 
 
 ## Contributing
 
-Feel free to submit issues, feature requests, or pull requests on the [GitHub repository](https://github.com/leonardomiramondi/flux-context-comfyui).
+Feel free to submit issues, feature requests, or pull requests on the [GitHub repository](https://github.com/leonardomiramondi/flux-kontext-comfyui).
 
 ## License
 
@@ -146,6 +146,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Credits
 
-- **Black Forest Labs** for the Flux Context models
+- **Black Forest Labs** for the Flux Kontext models
 - **Replicate** for API infrastructure  
 - **ComfyUI** community for the amazing framework 

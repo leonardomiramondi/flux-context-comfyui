@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Flux Context ComfyUI Node Installation Script
+# Flux Kontext ComfyUI Node Installation Script
 
 set -e
 
-echo "🚀 Installing Flux Context ComfyUI Node..."
+echo "🚀 Installing Flux Kontext ComfyUI Node..."
 
 # Check if we're in the right directory
 if [ ! -f "requirements.txt" ]; then
-    echo "❌ Error: requirements.txt not found."
-    echo "   Make sure you're in the flux-context-comfyui directory inside your ComfyUI/custom_nodes/ folder."
+    echo "❌ Error: requirements.txt not found!"
+    echo "   Make sure you're in the flux-kontext-comfyui directory inside your ComfyUI/custom_nodes/ folder."
     echo "   Your ComfyUI path may be different - check where you installed ComfyUI."
     exit 1
 fi
@@ -25,10 +25,21 @@ else
     exit 1
 fi
 
-echo ""
-echo "✅ Installation complete!"
-echo "   Please restart ComfyUI to load the new node."
-echo "   The node will appear under: Add Node → image → generation → Flux Context"
-echo ""
-echo "ℹ️  Don't forget to get your Replicate API token from:"
-echo "   https://replicate.com/account/api-tokens" 
+# Check if installation was successful
+if [ $? -eq 0 ]; then
+    echo "✅ Installation completed successfully!"
+    echo ""
+    echo "🎉 Flux Kontext ComfyUI Node is now ready to use!"
+    echo ""
+    echo "📋 Next steps:"
+    echo "   1. Restart ComfyUI"
+    echo "   2. Get your Replicate API token from: https://replicate.com/account/api-tokens"
+    echo "   3. In ComfyUI workflows, you can now use the Flux Kontext node"
+    echo "   The node will appear under: Add Node → image → generation → Flux Kontext"
+    echo ""
+    echo "💡 Need help? Check the README.md or visit the GitHub repository!"
+else
+    echo "❌ Installation failed!"
+    echo "   Please check the error messages above and try again."
+    exit 1
+fi 
